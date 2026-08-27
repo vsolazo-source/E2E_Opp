@@ -1,0 +1,6 @@
+{
+  "name": "End-to-End Opportunity Tracker",
+  "description": "Enterprise opportunity lifecycle tracker from Sales intake, Solution Design & optional Vendor procurement, Contracts & Finance approvals, Client negotiation, DocuSign WIN notifications, to PMO Delivery, CWC, and Billing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
