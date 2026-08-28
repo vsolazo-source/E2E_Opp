@@ -40,6 +40,29 @@ export const RESOURCE_COLLECTION = 'resources';
 export const CONFIG_COLLECTION = 'appConfig';
 
 /**
+ * Recursively removes all undefined properties from an object before Firestore write.
+ * Firestore strictly throws an error if any field in an object or nested map is undefined.
+ */
+export function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === undefined) {
+    return null as any;
+  }
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => (item === undefined ? null : sanitizeForFirestore(item))) as any;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = sanitizeForFirestore(value);
+    }
+  }
+  return result as T;
+}
+
+/**
  * Seeds initial mock data into Firestore if collections are empty.
  */
 export async function seedInitialFirestoreDataIfEmpty(): Promise<boolean> {
@@ -52,27 +75,27 @@ export async function seedInitialFirestoreDataIfEmpty(): Promise<boolean> {
       // Seed Opportunities
       INITIAL_OPPORTUNITIES.forEach((opp) => {
         const oppRef = doc(db, OPP_COLLECTION, opp.id);
-        batch.set(oppRef, opp);
+        batch.set(oppRef, sanitizeForFirestore(opp));
       });
 
       // Seed Clients
       INITIAL_CLIENTS.forEach((client) => {
         const clientRef = doc(db, CLIENT_COLLECTION, client.id);
-        batch.set(clientRef, client);
+        batch.set(clientRef, sanitizeForFirestore(client));
       });
 
       // Seed Resources
       INITIAL_RESOURCES.forEach((res) => {
         const resRef = doc(db, RESOURCE_COLLECTION, res.id);
-        batch.set(resRef, res);
+        batch.set(resRef, sanitizeForFirestore(res));
       });
 
       // Seed Configs
       const formRef = doc(db, CONFIG_COLLECTION, 'formSelectors');
-      batch.set(formRef, { data: INITIAL_FORM_SELECTORS });
+      batch.set(formRef, { data: sanitizeForFirestore(INITIAL_FORM_SELECTORS) });
 
       const stagesRef = doc(db, CONFIG_COLLECTION, 'stageDefinitions');
-      batch.set(stagesRef, { data: WORKFLOW_STAGES });
+      batch.set(stagesRef, { data: sanitizeForFirestore(WORKFLOW_STAGES) });
 
       await batch.commit();
       console.log('✅ Firestore Database seed completed successfully.');
@@ -120,7 +143,11 @@ export function subscribeOpportunities(
  */
 export async function saveOpportunityToDb(opportunity: Opportunity): Promise<void> {
   const oppRef = doc(db, OPP_COLLECTION, opportunity.id);
-  await setDoc(oppRef, { ...opportunity, updatedAt: new Date().toISOString() }, { merge: true });
+  const cleanData = sanitizeForFirestore({
+    ...opportunity,
+    updatedAt: new Date().toISOString()
+  });
+  await setDoc(oppRef, cleanData, { merge: true });
 }
 
 /**
@@ -160,7 +187,7 @@ export function subscribeClients(
  */
 export async function saveClientToDb(client: ClientOrganization): Promise<void> {
   const clientRef = doc(db, CLIENT_COLLECTION, client.id);
-  await setDoc(clientRef, client, { merge: true });
+  await setDoc(clientRef, sanitizeForFirestore(client), { merge: true });
 }
 
 /**
@@ -200,7 +227,7 @@ export function subscribeResources(
  */
 export async function saveResourceToDb(resource: ResourceMember): Promise<void> {
   const resRef = doc(db, RESOURCE_COLLECTION, resource.id);
-  await setDoc(resRef, resource, { merge: true });
+  await setDoc(resRef, sanitizeForFirestore(resource), { merge: true });
 }
 
 /**
@@ -238,7 +265,7 @@ export function subscribeFormSelectors(
  */
 export async function saveFormSelectorsToDb(config: FormSelectorsConfig): Promise<void> {
   const docRef = doc(db, CONFIG_COLLECTION, 'formSelectors');
-  await setDoc(docRef, { data: config }, { merge: true });
+  await setDoc(docRef, { data: sanitizeForFirestore(config) }, { merge: true });
 }
 
 /**
@@ -268,7 +295,7 @@ export function subscribeStageDefinitions(
  */
 export async function saveStageDefinitionsToDb(stages: StageDefinition[]): Promise<void> {
   const docRef = doc(db, CONFIG_COLLECTION, 'stageDefinitions');
-  await setDoc(docRef, { data: stages }, { merge: true });
+  await setDoc(docRef, { data: sanitizeForFirestore(stages) }, { merge: true });
 }
 
 /**
@@ -286,16 +313,16 @@ export async function resetFirestoreToDemoData(): Promise<void> {
     resDocs.forEach((d) => batch.delete(d.ref));
 
     INITIAL_OPPORTUNITIES.forEach((opp) => {
-      batch.set(doc(db, OPP_COLLECTION, opp.id), opp);
+      batch.set(doc(db, OPP_COLLECTION, opp.id), sanitizeForFirestore(opp));
     });
     INITIAL_CLIENTS.forEach((c) => {
-      batch.set(doc(db, CLIENT_COLLECTION, c.id), c);
+      batch.set(doc(db, CLIENT_COLLECTION, c.id), sanitizeForFirestore(c));
     });
     INITIAL_RESOURCES.forEach((r) => {
-      batch.set(doc(db, RESOURCE_COLLECTION, r.id), r);
+      batch.set(doc(db, RESOURCE_COLLECTION, r.id), sanitizeForFirestore(r));
     });
-    batch.set(doc(db, CONFIG_COLLECTION, 'formSelectors'), { data: INITIAL_FORM_SELECTORS });
-    batch.set(doc(db, CONFIG_COLLECTION, 'stageDefinitions'), { data: WORKFLOW_STAGES });
+    batch.set(doc(db, CONFIG_COLLECTION, 'formSelectors'), { data: sanitizeForFirestore(INITIAL_FORM_SELECTORS) });
+    batch.set(doc(db, CONFIG_COLLECTION, 'stageDefinitions'), { data: sanitizeForFirestore(WORKFLOW_STAGES) });
 
     await batch.commit();
     console.log('✅ Firestore Database reset to initial demo dataset.');
