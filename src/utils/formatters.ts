@@ -1,13 +1,18 @@
 import { Opportunity, WorkflowStage, StageDefinition } from '../types';
 import { STAGE_MAP } from '../data/stages';
 
-export function formatCurrency(amount: number | undefined, currency: string = 'USD'): string {
-  if (amount === undefined || isNaN(amount)) return '$0';
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount);
+export function formatCurrency(amount: number | undefined, currency: string = 'PHP'): string {
+  if (amount === undefined || isNaN(amount)) return '₱0';
+  const targetCurrency = currency || 'PHP';
+  try {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: targetCurrency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${targetCurrency === 'PHP' ? '₱' : targetCurrency} ${amount.toLocaleString()}`;
+  }
 }
 
 export function formatDate(dateString: string | undefined): string {

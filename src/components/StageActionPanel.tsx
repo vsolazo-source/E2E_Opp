@@ -44,6 +44,7 @@ import { Opportunity, WorkflowStage, StakeholderRole, FormSelectorsConfig, Clien
 import { STAGE_MAP } from '../data/stages';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { SUPPORTED_CURRENCIES } from './NewOpportunityModal';
+import { ClientProposalUpdatePanel } from './ClientProposalUpdatePanel';
 
 interface StageActionPanelProps {
   opportunity: Opportunity;
@@ -3258,6 +3259,14 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
               )}
             </div>
 
+            {/* STAGE 3 CLIENT PROPOSAL DETAILS & PRICE (TCV) UPDATE PANEL */}
+            <ClientProposalUpdatePanel
+              opportunity={opportunity}
+              stage="SALES_PROPOSAL_REVIEW"
+              currentRole={currentRole}
+              onUpdateOpportunity={onUpdateOpportunity}
+            />
+
             {/* STAGE 3 TIMELINE, ACKNOWLEDGMENT & SLA ENGINE */}
             <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-200/70 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-blue-200/50 pb-2">
@@ -3656,6 +3665,14 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                 </p>
               )}
             </div>
+
+            {/* STAGE 4 CLIENT PROPOSAL DETAILS & DEAL VALUE (TCV) UPDATE PANEL */}
+            <ClientProposalUpdatePanel
+              opportunity={opportunity}
+              stage="CONTRACTS_PROPOSAL_REVIEW"
+              currentRole={currentRole}
+              onUpdateOpportunity={onUpdateOpportunity}
+            />
 
             {/* STAGE 4 TIMELINE, ACKNOWLEDGMENT, PROCESSOR & SLA ENGINE */}
             <div className="p-3.5 bg-amber-50/40 rounded-xl border border-amber-200/70 space-y-3">
@@ -4299,6 +4316,14 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                 <span className="text-[10px] text-slate-400 block">Benchmark target: ≥ 35.0%</span>
               </div>
             </div>
+
+            {/* STAGE 5 CLIENT PROPOSAL DETAILS, DEAL VALUE (TCV) & COST MODEL UPDATE PANEL */}
+            <ClientProposalUpdatePanel
+              opportunity={opportunity}
+              stage="INITIAL_FINANCE_APPROVAL"
+              currentRole={currentRole}
+              onUpdateOpportunity={onUpdateOpportunity}
+            />
 
             {/* Supporting Proposals, Calculator & Contract Context */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

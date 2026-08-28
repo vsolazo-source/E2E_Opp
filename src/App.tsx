@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Opportunity, WorkflowStage, StakeholderRole, ClientOrganization, ResourceMember, FormSelectorsConfig, StageDefinition, AuditLogEntry } from './types';
 import { INITIAL_OPPORTUNITIES } from './data/mockOpportunities';
 import { INITIAL_CLIENTS } from './data/mockClients';
@@ -12,6 +12,23 @@ import { OpportunityDetailModal } from './components/OpportunityDetailModal';
 import { NewOpportunityModal } from './components/NewOpportunityModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
 import { AdminSection } from './components/AdminSection';
+import { 
+  seedInitialFirestoreDataIfEmpty,
+  subscribeOpportunities,
+  subscribeClients,
+  subscribeResources,
+  subscribeFormSelectors,
+  subscribeStageDefinitions,
+  saveOpportunityToDb,
+  deleteOpportunityFromDb,
+  saveClientToDb,
+  deleteClientFromDb,
+  saveResourceToDb,
+  deleteResourceFromDb,
+  saveFormSelectorsToDb,
+  saveStageDefinitionsToDb,
+  resetFirestoreToDemoData
+} from './lib/firebase';
 
 const LOCAL_STORAGE_KEY = 'e2e_opportunity_tracker_data_v1';
 const CLIENT_STORAGE_KEY = 'e2e_client_directory_v1';
@@ -20,6 +37,10 @@ const FORM_SELECTORS_STORAGE_KEY = 'e2e_form_selectors_config_v1';
 const STAGE_SLAS_STORAGE_KEY = 'e2e_workflow_stage_slas_v1';
 
 export default function App() {
+  // Database status
+  const [dbStatus, setDbStatus] = useState<'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'ERROR' | 'OFFLINE'>('CONNECTING');
+  const isInitialMount = useRef(true);
+
   // Target SLAs & Workflow Stages State
   const [stageDefinitions, setStageDefinitions] = useState<StageDefinition[]>(() => {
     try {
@@ -107,6 +128,86 @@ export default function App() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
+  // Initialize and subscribe to Cloud Firestore
+  useEffect(() => {
+    let unsubscribeOpps: (() => void) | undefined;
+    let unsubscribeClients: (() => void) | undefined;
+    let unsubscribeResources: (() => void) | undefined;
+    let unsubscribeSelectors: (() => void) | undefined;
+    let unsubscribeStages: (() => void) | undefined;
+
+    const initDb = async () => {
+      try {
+        setDbStatus('CONNECTING');
+        await seedInitialFirestoreDataIfEmpty();
+
+        unsubscribeOpps = subscribeOpportunities(
+          (dbOpps) => {
+            if (dbOpps && dbOpps.length > 0) {
+              setOpportunities(dbOpps);
+            }
+            setDbStatus('CONNECTED');
+          },
+          (err) => {
+            console.error('Firestore opps error:', err);
+            setDbStatus('ERROR');
+          }
+        );
+
+        unsubscribeClients = subscribeClients(
+          (dbClients) => {
+            if (dbClients && dbClients.length > 0) {
+              setClients(dbClients);
+            }
+          },
+          (err) => console.error('Firestore clients error:', err)
+        );
+
+        unsubscribeResources = subscribeResources(
+          (dbResources) => {
+            if (dbResources && dbResources.length > 0) {
+              setResources(dbResources);
+            }
+          },
+          (err) => console.error('Firestore resources error:', err)
+        );
+
+        unsubscribeSelectors = subscribeFormSelectors(
+          (dbSelectors) => {
+            if (dbSelectors && typeof dbSelectors === 'object') {
+              setFormSelectors(dbSelectors);
+            }
+          },
+          (err) => console.error('Firestore selectors error:', err)
+        );
+
+        unsubscribeStages = subscribeStageDefinitions(
+          (dbStages) => {
+            if (dbStages && Array.isArray(dbStages) && dbStages.length > 0) {
+              setStageDefinitions(dbStages);
+            }
+          },
+          (err) => console.error('Firestore stages error:', err)
+        );
+
+      } catch (err) {
+        console.error('Firestore database initialization error:', err);
+        setDbStatus('ERROR');
+      }
+    };
+
+    initDb();
+
+    return () => {
+      if (unsubscribeOpps) unsubscribeOpps();
+      if (unsubscribeClients) unsubscribeClients();
+      if (unsubscribeResources) unsubscribeResources();
+      if (unsubscribeSelectors) unsubscribeSelectors();
+      if (unsubscribeStages) unsubscribeStages();
+    };
+  }, []);
+
+  // Sync to local storage as fallback offline cache
   useEffect(() => {
     try {
       localStorage.setItem(STAGE_SLAS_STORAGE_KEY, JSON.stringify(stageDefinitions));
@@ -179,8 +280,8 @@ export default function App() {
     return counts;
   }, [opportunities]);
 
-  // Opportunity Handlers
-  const handleUpdateOpportunity = (updated: Opportunity) => {
+  // Opportunity Handlers with Cloud DB synchronization
+  const handleUpdateOpportunity = async (updated: Opportunity) => {
     const updatedWithTime: Opportunity = { ...updated, updatedAt: new Date().toISOString() };
     setOpportunities((prev) =>
       prev.map((opp) => (opp.id === updated.id ? updatedWithTime : opp))
@@ -188,9 +289,15 @@ export default function App() {
     if (selectedOpportunity?.id === updated.id) {
       setSelectedOpportunity(updatedWithTime);
     }
+
+    try {
+      await saveOpportunityToDb(updatedWithTime);
+    } catch (err) {
+      console.error('Failed to persist opportunity update to Firestore:', err);
+    }
   };
 
-  const handleAdvanceStage = (
+  const handleAdvanceStage = async (
     oppId: string,
     nextStage: WorkflowStage,
     actionName: string,
@@ -214,19 +321,23 @@ export default function App() {
       currency: oppCurrency,
     });
 
+    let updatedRecord: Opportunity | null = null;
+
     setOpportunities((prev) =>
       prev.map((opp) => {
         if (opp.id !== oppId) return opp;
 
         const newHistoryEntry = createHistoryEntry(opp.dealValue, opp.currency);
 
-        return {
+        const updated = {
           ...opp,
           currentStage: nextStage,
           stageEnteredAt: now,
           updatedAt: now,
           history: [...(opp.history || []), newHistoryEntry],
         };
+        updatedRecord = updated;
+        return updated;
       })
     );
 
@@ -241,80 +352,139 @@ export default function App() {
         history: [...(prev.history || []), newHistoryEntry],
       };
     });
+
+    if (updatedRecord) {
+      try {
+        await saveOpportunityToDb(updatedRecord);
+      } catch (err) {
+        console.error('Failed to persist stage progression to Firestore:', err);
+      }
+    }
   };
 
-  const handleCreateOpportunity = (newOpp: Opportunity) => {
+  const handleCreateOpportunity = async (newOpp: Opportunity) => {
     setOpportunities((prev) => [newOpp, ...prev]);
     setSelectedOpportunity(newOpp);
+    try {
+      await saveOpportunityToDb(newOpp);
+    } catch (err) {
+      console.error('Failed to persist new opportunity to Firestore:', err);
+    }
   };
 
-  // Client Directory Handlers
-  const handleAddClient = (newClient: ClientOrganization) => {
+  // Client Directory Handlers with Cloud DB synchronization
+  const handleAddClient = async (newClient: ClientOrganization) => {
     setClients((prev) => [newClient, ...prev]);
+    try {
+      await saveClientToDb(newClient);
+    } catch (err) {
+      console.error('Failed to save client to Firestore:', err);
+    }
   };
 
-  const handleUpdateClient = (updatedClient: ClientOrganization) => {
+  const handleUpdateClient = async (updatedClient: ClientOrganization) => {
     setClients((prev) =>
       prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
     );
+    try {
+      await saveClientToDb(updatedClient);
+    } catch (err) {
+      console.error('Failed to update client in Firestore:', err);
+    }
   };
 
-  const handleDeleteClient = (clientId: string) => {
+  const handleDeleteClient = async (clientId: string) => {
     setClients((prev) => prev.filter((c) => c.id !== clientId));
+    try {
+      await deleteClientFromDb(clientId);
+    } catch (err) {
+      console.error('Failed to delete client from Firestore:', err);
+    }
   };
 
-  const handleBulkImportClients = (newClients: ClientOrganization[], mode: 'APPEND' | 'REPLACE') => {
+  const handleBulkImportClients = async (newClients: ClientOrganization[], mode: 'APPEND' | 'REPLACE') => {
     if (mode === 'REPLACE') {
       setClients(newClients);
+      for (const client of newClients) {
+        saveClientToDb(client).catch(console.error);
+      }
     } else {
       setClients((prev) => {
         const existingNames = new Set(prev.map((c) => (c?.name || '').toLowerCase()));
         const uniqueNew = newClients.filter((c) => c?.name && !existingNames.has(c.name.toLowerCase()));
+        uniqueNew.forEach((c) => saveClientToDb(c).catch(console.error));
         return [...prev, ...uniqueNew];
       });
     }
   };
 
-  // Resource Directory Handlers
-  const handleAddResource = (newResource: ResourceMember) => {
+  // Resource Directory Handlers with Cloud DB synchronization
+  const handleAddResource = async (newResource: ResourceMember) => {
     setResources((prev) => [newResource, ...prev]);
+    try {
+      await saveResourceToDb(newResource);
+    } catch (err) {
+      console.error('Failed to save resource to Firestore:', err);
+    }
   };
 
-  const handleUpdateResource = (updatedResource: ResourceMember) => {
+  const handleUpdateResource = async (updatedResource: ResourceMember) => {
     setResources((prev) =>
       prev.map((r) => (r.id === updatedResource.id ? updatedResource : r))
     );
+    try {
+      await saveResourceToDb(updatedResource);
+    } catch (err) {
+      console.error('Failed to update resource in Firestore:', err);
+    }
   };
 
-  const handleDeleteResource = (resourceId: string) => {
+  const handleDeleteResource = async (resourceId: string) => {
     setResources((prev) => prev.filter((r) => r.id !== resourceId));
+    try {
+      await deleteResourceFromDb(resourceId);
+    } catch (err) {
+      console.error('Failed to delete resource from Firestore:', err);
+    }
   };
 
-  const handleBulkImportResources = (newResources: ResourceMember[], mode: 'APPEND' | 'REPLACE') => {
+  const handleBulkImportResources = async (newResources: ResourceMember[], mode: 'APPEND' | 'REPLACE') => {
     if (mode === 'REPLACE') {
       setResources(newResources);
+      for (const res of newResources) {
+        saveResourceToDb(res).catch(console.error);
+      }
     } else {
       setResources((prev) => {
         const existingEmails = new Set(prev.map((r) => (r?.email || '').toLowerCase()));
         const uniqueNew = newResources.filter((r) => r?.email && !existingEmails.has(r.email.toLowerCase()));
+        uniqueNew.forEach((r) => saveResourceToDb(r).catch(console.error));
         return [...prev, ...uniqueNew];
       });
     }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset all opportunities, clients, resource directory, target SLAs, and form selector dropdowns back to initial realistic demo dataset?')) {
-      setOpportunities(INITIAL_OPPORTUNITIES);
-      setClients(INITIAL_CLIENTS);
-      setResources(INITIAL_RESOURCES);
-      setFormSelectors(INITIAL_FORM_SELECTORS);
-      setStageDefinitions(WORKFLOW_STAGES);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-      localStorage.removeItem(CLIENT_STORAGE_KEY);
-      localStorage.removeItem(RESOURCE_STORAGE_KEY);
-      localStorage.removeItem(FORM_SELECTORS_STORAGE_KEY);
-      localStorage.removeItem(STAGE_SLAS_STORAGE_KEY);
-      setSelectedOpportunity(null);
+  const handleResetData = async () => {
+    if (window.confirm('Reset all opportunities, clients, resource directory, target SLAs, and form selector dropdowns in the Cloud Database back to initial realistic demo dataset?')) {
+      setDbStatus('SYNCING');
+      try {
+        await resetFirestoreToDemoData();
+        setOpportunities(INITIAL_OPPORTUNITIES);
+        setClients(INITIAL_CLIENTS);
+        setResources(INITIAL_RESOURCES);
+        setFormSelectors(INITIAL_FORM_SELECTORS);
+        setStageDefinitions(WORKFLOW_STAGES);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(CLIENT_STORAGE_KEY);
+        localStorage.removeItem(RESOURCE_STORAGE_KEY);
+        localStorage.removeItem(FORM_SELECTORS_STORAGE_KEY);
+        localStorage.removeItem(STAGE_SLAS_STORAGE_KEY);
+        setSelectedOpportunity(null);
+        setDbStatus('CONNECTED');
+      } catch (err) {
+        console.error('Failed to reset cloud database:', err);
+        setDbStatus('ERROR');
+      }
     }
   };
 
@@ -336,21 +506,33 @@ export default function App() {
     downloadAnchor.remove();
   };
 
-  const handleUpdateStageDefinitions = (updatedStages: StageDefinition[]) => {
+  const handleUpdateStageDefinitions = async (updatedStages: StageDefinition[]) => {
     setStageDefinitions(updatedStages);
+    try {
+      await saveStageDefinitionsToDb(updatedStages);
+    } catch (err) {
+      console.error('Failed to save stage definitions to Firestore:', err);
+    }
   };
 
-  const handleUpdateFormSelectors = (newConfig: FormSelectorsConfig) => {
+  const handleUpdateFormSelectors = async (newConfig: FormSelectorsConfig) => {
     setFormSelectors(newConfig);
+    try {
+      await saveFormSelectorsToDb(newConfig);
+    } catch (err) {
+      console.error('Failed to save form selectors to Firestore:', err);
+    }
   };
 
-  const handleSyncFormOption = (
+  const handleSyncFormOption = async (
     category: any,
     option: { label: string; value: string; color?: string; description?: string }
   ) => {
     if (!option.label || !option.label.trim()) return;
     const labelTrimmed = option.label.trim();
     const valueTrimmed = (option.value || option.label).trim();
+
+    let updatedConfig: FormSelectorsConfig | null = null;
 
     setFormSelectors((prev) => {
       let categoryKey: keyof FormSelectorsConfig = 'industries';
@@ -383,11 +565,21 @@ export default function App() {
         order: currentList.length + 1,
       };
 
-      return {
+      const next = {
         ...prev,
         [categoryKey]: [...currentList, newItem],
       };
+      updatedConfig = next;
+      return next;
     });
+
+    if (updatedConfig) {
+      try {
+        await saveFormSelectorsToDb(updatedConfig);
+      } catch (err) {
+        console.error('Failed to sync form option to Firestore:', err);
+      }
+    }
   };
 
   return (
@@ -401,6 +593,7 @@ export default function App() {
         onOpenAiAssistant={() => setIsAiModalOpen(true)}
         onResetData={handleResetData}
         onExportData={handleExportData}
+        dbStatus={dbStatus}
       />
 
       {/* Main Content Area */}
@@ -495,3 +688,4 @@ export default function App() {
     </div>
   );
 }
+

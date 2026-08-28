@@ -150,7 +150,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
             <TrendingUp className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-lg font-bold text-slate-900 truncate">
-            {formatCurrency(totalPipelineValue)}
+            {formatCurrency(totalPipelineValue, 'PHP')}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
             {opportunities.length} Active Deals
@@ -164,7 +164,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
             <Award className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-lg font-bold text-emerald-700 truncate">
-            {formatCurrency(contractedTcv)}
+            {formatCurrency(contractedTcv, 'PHP')}
           </div>
           <div className="text-[11px] text-emerald-600 font-medium mt-1">
             {contractedAndWonDeals.length} Won & In Delivery
@@ -178,7 +178,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
             <DollarSign className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-lg font-bold text-slate-900 truncate">
-            {formatCurrency(billedRevenue)}
+            {formatCurrency(billedRevenue, 'PHP')}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
             Via Endorsed CWCs

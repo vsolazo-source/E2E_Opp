@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "opportunities": {
+      "title": "Opportunity",
+      "description": "End-to-end Opportunity Record across all 7 workflow stages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "clientName": { "type": "string" },
+        "dealValue": { "type": "number" },
+        "currency": { "type": "string" },
+        "currentStage": { "type": "string" },
+        "priority": { "type": "string" },
+        "status": { "type": "string" },
+        "owner": { "type": "string" },
+        "industry": { "type": "string" },
+        "targetCloseDate": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "stageDetails": { "type": "object" },
+        "auditLog": { "type": "array" }
+      },
+      "required": ["id", "title", "clientName", "dealValue", "currentStage"]
+    },
+    "clients": {
+      "title": "Client Organization",
+      "description": "Master Client Organization Record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "industry": { "type": "string" },
+        "division": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "resources": {
+      "title": "Resource Member",
+      "description": "Internal Staff and Solution Resource Record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" }
+      },
+      "required": ["id", "name", "role"]
+    },
+    "appConfig": {
+      "title": "Application Configuration",
+      "description": "System dropdown selectors and SLA configurations",
+      "type": "object",
+      "properties": {
+        "configId": { "type": "string" },
+        "data": { "type": "object" }
+      },
+      "required": ["configId"]
+    }
+  }
+}
