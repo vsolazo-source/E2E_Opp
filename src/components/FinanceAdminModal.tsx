@@ -502,7 +502,7 @@ export const FinanceAdminModal: React.FC<FinanceAdminModalProps> = ({
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-medium text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="INITIAL_FINANCE_APPROVAL">Stage 5: Initial Finance Approval</option>
-                  <option value="FINAL_FINANCE_APPROVAL">Stage 8: Final Finance Approval</option>
+                  <option value="FINAL_FINANCE_APPROVAL">Stage 9: Final Finance Approval</option>
                 </select>
               </div>
 
@@ -721,9 +721,9 @@ export const FinanceAdminModal: React.FC<FinanceAdminModalProps> = ({
                     onChange={(e) => setEditingTier({ ...editingTier, applicableStages: [e.target.value as any] })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   >
-                    <option value="BOTH">Stage 5 (Initial) & Stage 8 (Final)</option>
+                    <option value="BOTH">Stage 5 (Initial) & Stage 9 (Final)</option>
                     <option value="INITIAL_FINANCE_APPROVAL">Stage 5 (Initial Finance Only)</option>
-                    <option value="FINAL_FINANCE_APPROVAL">Stage 8 (Final Finance Only)</option>
+                    <option value="FINAL_FINANCE_APPROVAL">Stage 9 (Final Finance Only)</option>
                   </select>
                 </div>
               </div>

@@ -57,9 +57,20 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
     color: 'purple',
   },
   {
-    id: 'CLIENT_BUYOFF_NEGOTIATION',
+    id: 'CONTRACTS_PROPOSAL_ENDORSEMENT',
     index: 6,
-    label: '6. Client Buyoff & Negotiation',
+    label: '6. Contracts Team Proposal Endorsement',
+    shortLabel: 'Contracts Endorsement',
+    description: 'Contracts team endorsing the finance approved Proposal to Sales team for Buyoff.',
+    primaryActor: 'CONTRACTS',
+    actorLabel: 'Contracts Team',
+    targetSlaDays: 2,
+    color: 'amber',
+  },
+  {
+    id: 'CLIENT_BUYOFF_NEGOTIATION',
+    index: 7,
+    label: '7. Client Buyoff & Negotiation',
     shortLabel: 'Client Buyoff',
     description: 'Sales presents proposal to client, negotiates commercial terms, and secures client confirmation.',
     primaryActor: 'SALES',
@@ -69,8 +80,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'CONTRACT_CONVERSION',
-    index: 7,
-    label: '7. Contract & Agreement Conversion',
+    index: 8,
+    label: '8. Contract & Agreement Conversion',
     shortLabel: 'Contract Conversion',
     description: 'Contracts team converts confirmed proposal into Master Services Agreement (MSA), SOW, or SLA.',
     primaryActor: 'CONTRACTS',
@@ -80,8 +91,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'FINAL_FINANCE_APPROVAL',
-    index: 8,
-    label: '8. Final Finance Approval',
+    index: 9,
+    label: '9. Final Finance Approval',
     shortLabel: 'Final Finance',
     description: 'Contracts team triggers final Finance approval on binding TCV, payment milestones, and billing clauses.',
     primaryActor: 'FINANCE',
@@ -91,8 +102,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'DOCUSIGN_CLIENT_ROUTING',
-    index: 9,
-    label: '9. DocuSign & Client Routing',
+    index: 10,
+    label: '10. DocuSign & Client Routing',
     shortLabel: 'DocuSign / Signing',
     description: 'Contract routed via DocuSign digital envelope or coordinated by Sales with client for countersignature.',
     primaryActor: 'CONTRACTS',
@@ -102,8 +113,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'WIN_NOTIFICATION',
-    index: 10,
-    label: '10. WIN Notification Release',
+    index: 11,
+    label: '11. WIN Notification Release',
     shortLabel: 'WIN Broadcast',
     description: 'Contracts team releases official WIN notification announcement email to leadership and company.',
     primaryActor: 'CONTRACTS',
@@ -113,8 +124,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'PARALLEL_EXECUTION',
-    index: 11,
-    label: '11. Parallel Execution (Finance & PMO)',
+    index: 12,
+    label: '12. Parallel Execution (Finance & PMO)',
     shortLabel: 'Parallel Delivery',
     description: 'Finance assigns Budget Code, Contract Code & TCV; PMO kicks off project delivery & milestone tracking.',
     primaryActor: 'PMO',
@@ -124,8 +135,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'CWC_DELIVERY',
-    index: 12,
-    label: '12. Certificate of Work Completion (CWC)',
+    index: 13,
+    label: '13. Certificate of Work Completion (CWC)',
     shortLabel: 'CWC Signoff',
     description: 'PMO / BU issues Certificate of Work Completion and secures client milestone acceptance sign-off.',
     primaryActor: 'PMO',
@@ -135,8 +146,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'FINANCE_BILLING_ENDORSEMENT',
-    index: 13,
-    label: '13. Finance Endorsement & Billing',
+    index: 14,
+    label: '14. Finance Endorsement & Billing',
     shortLabel: 'Billing & Invoicing',
     description: 'Endorse signed CWC to Finance to issue formal invoice, record accounts receivable, and collect payment.',
     primaryActor: 'FINANCE',
@@ -146,8 +157,8 @@ export const WORKFLOW_STAGES: StageDefinition[] = [
   },
   {
     id: 'DEAL_CLOSED',
-    index: 14,
-    label: '14. Deal & Project Closed',
+    index: 15,
+    label: '15. Deal & Project Closed',
     shortLabel: 'Closed / Realized',
     description: 'Full revenue collected, project archived, post-delivery realization completed.',
     primaryActor: 'ALL',
@@ -172,3 +183,30 @@ export const BU_LABELS: Record<string, string> = {
   MANAGED_SERVICES: 'Managed Services & Security',
   CYBERSECURITY: 'Cybersecurity & Governance',
 };
+
+/**
+ * Ensures stage definitions array always contains all 15 stages with exact indexes and phase groupings.
+ */
+export function ensureValid15Stages(savedStages?: any[]): StageDefinition[] {
+  if (!Array.isArray(savedStages) || savedStages.length === 0) {
+    return WORKFLOW_STAGES;
+  }
+  const savedMap = new Map<string, any>();
+  savedStages.forEach((s) => {
+    if (s && s.id) savedMap.set(s.id, s);
+  });
+
+  return WORKFLOW_STAGES.map((stdStage) => {
+    const saved = savedMap.get(stdStage.id);
+    if (saved) {
+      return {
+        ...stdStage,
+        targetSlaDays: typeof saved.targetSlaDays === 'number' ? saved.targetSlaDays : stdStage.targetSlaDays,
+        warningThresholdPercentage: typeof saved.warningThresholdPercentage === 'number' ? saved.warningThresholdPercentage : stdStage.warningThresholdPercentage,
+        escalationNotes: typeof saved.escalationNotes === 'string' ? saved.escalationNotes : stdStage.escalationNotes,
+      };
+    }
+    return stdStage;
+  });
+}
+

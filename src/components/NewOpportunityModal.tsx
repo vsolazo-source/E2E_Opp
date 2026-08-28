@@ -266,7 +266,7 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Initiate Sales Qualification & Scope Intake into the 14-stage pipeline
+                Initiate Sales Qualification & Scope Intake into the 15-stage pipeline
               </p>
             </div>
           </div>

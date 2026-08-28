@@ -175,8 +175,8 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
     {
       id: 'PHASE_2',
       title: '2. Contracts & Finance Governance',
-      subtitle: 'Contracts Review, Initial Finance, Client Buyoff',
-      stages: ['CONTRACTS_PROPOSAL_REVIEW', 'INITIAL_FINANCE_APPROVAL', 'CLIENT_BUYOFF_NEGOTIATION'] as WorkflowStage[],
+      subtitle: 'Contracts Review, Initial Finance, Contracts Endorsement, Client Buyoff',
+      stages: ['CONTRACTS_PROPOSAL_REVIEW', 'INITIAL_FINANCE_APPROVAL', 'CONTRACTS_PROPOSAL_ENDORSEMENT', 'CLIENT_BUYOFF_NEGOTIATION'] as WorkflowStage[],
       headerColor: 'bg-purple-50 text-purple-900 border-purple-200',
     },
     {

@@ -319,7 +319,7 @@ export const ResourceDirectoryModal: React.FC<ResourceDirectoryModalProps> = ({
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
-                  Centralized directory of enterprise stakeholders, architects, legal counsel, deal owners, and delivery directors across all 14 stages.
+                  Centralized directory of enterprise stakeholders, architects, legal counsel, deal owners, and delivery directors across all 15 stages.
                 </p>
               </div>
             </div>

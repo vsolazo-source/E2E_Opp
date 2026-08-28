@@ -54,7 +54,7 @@ interface StageActionPanelProps {
   resources?: ResourceMember[];
   onAddResource?: (newResource: ResourceMember) => void;
   onUpdateOpportunity: (updated: Opportunity) => void;
-  onAdvanceStage: (nextStage: WorkflowStage, actionName: string, comments: string) => void;
+  onAdvanceStage: (nextStage: WorkflowStage, actionName: string, comments: string, extraUpdates?: Partial<Opportunity>) => void;
   onRejectStage?: (prevStage: WorkflowStage, reason: string) => void;
 }
 
@@ -3989,14 +3989,13 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    // Ensure stage 4 review data is preserved when endorsing
-                    onUpdateOpportunity({
-                      ...opportunity,
+                    const extraUpdates: Partial<Opportunity> = {
                       contractType: currentContractType,
                       contractDetails: {
                         ...opportunity.contractDetails,
                         contractType: currentContractType,
                       },
+                      contractsProcessor: contractsProcessor || opportunity.contractsProcessor,
                       contractsReviewData: {
                         ...opportunity.contractsReviewData,
                         stage4TriggerDate,
@@ -4005,9 +4004,20 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                         stage4TargetSlaDays,
                         contractsProcessor: contractsProcessor,
                         contractType: currentContractType,
+                        contractsReviewNotes: opportunity.contractsReviewNotes || opportunity.contractsReviewData?.contractsReviewNotes,
+                      },
+                      initialFinanceReviewData: {
+                        ...opportunity.initialFinanceReviewData,
+                        stage5TriggerDate: new Date().toISOString(),
                       }
-                    });
-                    onAdvanceStage('INITIAL_FINANCE_APPROVAL', 'Proposal Approved by Contracts', comments || 'Contracts team reviewed, recorded proposal code, and endorsed to Finance.');
+                    };
+
+                    onAdvanceStage(
+                      'INITIAL_FINANCE_APPROVAL',
+                      'Proposal Approved by Contracts',
+                      comments || 'Contracts team reviewed, recorded proposal code, and endorsed to Finance.',
+                      extraUpdates
+                    );
                   }}
                   className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-xs transition-all cursor-pointer gap-1.5"
                 >
@@ -4423,6 +4433,14 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
               />
             </div>
 
+            {/* Note: Roadmap Notice for Future Thresholds & Approvers */}
+            <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-2 text-xs text-purple-900 shadow-2xs">
+              <Info className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-bold">Next Phase Roadmap:</span> We will implement the finance approval threshold and multiple approvers matrix (based on deal value tiers) on the next phase.
+              </div>
+            </div>
+
             {/* Action Bar with Return to Contracts Team & Grant Approval Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-200">
               {/* Button: Return to Contracts Team for Update/Clarification */}
@@ -4438,13 +4456,12 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                 Return to Contracts Team for Update/Clarification
               </button>
 
-              {/* Button: Grant Finance Approval (Release to Client) */}
+              {/* Button: Grant Finance Approval to Contracts Team */}
               <button
                 type="button"
                 onClick={() => {
                   const approvalDate = new Date().toISOString();
-                  const updated = {
-                    ...opportunity,
+                  const extraUpdates: Partial<Opportunity> = {
                     financeProcessor: financeProcessor || 'Finance / Deal Desk',
                     initialFinanceReviewData: {
                       ...opportunity.initialFinanceReviewData,
@@ -4465,16 +4482,25 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                       approvedBy: financeProcessor || 'Finance / Deal Desk',
                       approvedAt: approvalDate,
                       approvedMarginPercent: grossMarginPercent,
-                      comments: financeReviewNotes || comments || 'Margins verified and approved for client release.',
+                      comments: financeReviewNotes || comments || 'Margins verified and approved for Contracts Team endorsement.',
+                    },
+                    contractsEndorsementData: {
+                      ...opportunity.contractsEndorsementData,
+                      stage6TriggerDate: approvalDate,
                     }
                   };
-                  onUpdateOpportunity(updated);
-                  onAdvanceStage('CLIENT_BUYOFF_NEGOTIATION', 'Initial Finance Approval Granted', comments || financeReviewNotes || 'Finance approved commercial margins. Ready for client release.');
+
+                  onAdvanceStage(
+                    'CONTRACTS_PROPOSAL_ENDORSEMENT',
+                    'Initial Finance Approval Granted to Contracts Team',
+                    comments || financeReviewNotes || 'Finance approved commercial margins and terms. Endorsed to Contracts Team for proposal endorsement.',
+                    extraUpdates
+                  );
                 }}
                 className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg bg-purple-600 text-white hover:bg-purple-700 shadow-xs transition-all cursor-pointer gap-1.5"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Grant Finance Approval (Release to Client)
+                Grant Finance Approval to Contracts Team
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -4482,7 +4508,409 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         );
       })()}
 
-      {/* STAGE 6: CLIENT BUYOFF & NEGOTIATION */}
+      {/* STAGE 6: CONTRACTS TEAM PROPOSAL ENDORSEMENT */}
+      {currentStage === 'CONTRACTS_PROPOSAL_ENDORSEMENT' && (() => {
+        const stage6TriggerDate =
+          opportunity.contractsEndorsementData?.stage6TriggerDate ||
+          opportunity.initialFinanceApproval?.approvedAt ||
+          (opportunity.currentStage === 'CONTRACTS_PROPOSAL_ENDORSEMENT' ? (opportunity.stageEnteredAt || opportunity.updatedAt || opportunity.createdAt) : (opportunity.stageEnteredAt || opportunity.createdAt));
+
+        const triggerDateDisplay = formatDate(stage6TriggerDate);
+        const triggerMs = new Date(stage6TriggerDate).getTime();
+        const autoDefaultedAckDate = new Date(triggerMs).toISOString().split('T')[0];
+        const storedAckDate = opportunity.contractsEndorsementData?.acknowledgedStartDate;
+        const effectiveAckDate = storedAckDate || autoDefaultedAckDate;
+        const stage6TargetSlaDays = opportunity.contractsEndorsementData?.stage6TargetSlaDays || STAGE_MAP.CONTRACTS_PROPOSAL_ENDORSEMENT?.targetSlaDays || 2;
+        const contractsEndorser = opportunity.contractsEndorsementData?.contractsEndorser || opportunity.contractsProcessor || '';
+        const targetSalesLead = opportunity.contractsEndorsementData?.targetSalesLead || opportunity.salesLead || '';
+        const endorsementNotes = opportunity.contractsEndorsementData?.endorsementNotes || opportunity.contractsEndorsementNotes || '';
+        const commercialGuidance = opportunity.contractsEndorsementData?.commercialGuidanceNotes || '';
+
+        // Calculate SLA elapsed
+        const ackMs = new Date(effectiveAckDate).getTime();
+        const elapsedDays = Math.max(0, Math.floor((Date.now() - ackMs) / (1000 * 60 * 60 * 24)));
+        const isOverdue = elapsedDays > stage6TargetSlaDays;
+
+        // Commercial & Financial metrics
+        const internalCost = opportunity.solutionProposal?.estimatedDeliveryCost || opportunity.solutionProposal?.ibsiInternalCost || 0;
+        const grossProfit = opportunity.dealValue - internalCost;
+        const grossMarginPercent = opportunity.dealValue > 0 ? (grossProfit / opportunity.dealValue) * 100 : 0;
+        const contractTypeDisplay = opportunity.contractType || opportunity.contractDetails?.contractType || opportunity.contractsReviewData?.contractType || 'Standard SOW';
+        const propLink = opportunity.solutionProposal?.clientProposalLink || opportunity.torLink;
+        const financeApprover = opportunity.initialFinanceApproval?.approvedBy || opportunity.initialFinanceReviewData?.financeProcessor || 'Finance / Deal Desk';
+        const financeApprovedAt = opportunity.initialFinanceApproval?.approvedAt || opportunity.initialFinanceReviewData?.approvedAt;
+        const financeNotes = opportunity.initialFinanceReviewData?.financeReviewNotes || opportunity.initialFinanceApproval?.comments || 'Commercial margins and pricing approved by Finance.';
+
+        return (
+          <div className="space-y-4 text-xs">
+            {/* SLA & Ingress Tracking Header */}
+            <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50/50 rounded-xl border border-amber-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-200/60">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-amber-600 text-white font-bold text-[10px] rounded-md uppercase tracking-wider">
+                      Stage 6 • Contracts Endorsement
+                    </span>
+                    <span className="text-amber-900 font-bold text-xs">
+                      Contracts Team Proposal Endorsement to Sales
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800/80 mt-0.5">
+                    Review Finance-approved proposal terms, verify legal/commercial boundaries, and officially endorse the proposal to the Sales team for Client Buyoff.
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <span className={`px-2 py-1 rounded-md font-bold text-[10px] flex items-center gap-1 ${
+                    isOverdue ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}>
+                    <Clock className="w-3 h-3" />
+                    {isOverdue ? `SLA Overdue (${elapsedDays}d / ${stage6TargetSlaDays}d target)` : `Within SLA (${elapsedDays}d / ${stage6TargetSlaDays}d)`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ingress Dates & Endorser Assignment */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label className="text-[10px] font-bold text-amber-900 uppercase block mb-1">
+                    Finance Approval Ingress Date
+                  </label>
+                  <div className="p-2 bg-white/90 border border-amber-200 rounded-lg text-slate-800 font-mono text-xs font-semibold">
+                    {stage6TriggerDate ? `${stage6TriggerDate.split('T')[0]} (${triggerDateDisplay})` : 'Pending Stage Ingress'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-amber-900 uppercase block">
+                      Acknowledged Start Date
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        onUpdateOpportunity({
+                          ...opportunity,
+                          contractsEndorsementData: {
+                            ...opportunity.contractsEndorsementData,
+                            stage6TriggerDate,
+                            acknowledgedStartDate: todayStr,
+                            stage6TargetSlaDays,
+                            contractsEndorser,
+                            targetSalesLead,
+                          }
+                        });
+                      }}
+                      className="text-[10px] text-amber-700 font-bold hover:underline cursor-pointer"
+                    >
+                      Set Today
+                    </button>
+                  </div>
+                  <input
+                    type="date"
+                    value={effectiveAckDate ? effectiveAckDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        contractsEndorsementData: {
+                          ...opportunity.contractsEndorsementData,
+                          stage6TriggerDate,
+                          acknowledgedStartDate: val,
+                          stage6TargetSlaDays,
+                          contractsEndorser,
+                          targetSalesLead,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-amber-900 uppercase block mb-1">
+                    Contracts Lead / Endorser
+                  </label>
+                  <select
+                    value={contractsEndorser}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        contractsProcessor: val,
+                        contractsEndorsementData: {
+                          ...opportunity.contractsEndorsementData,
+                          stage6TriggerDate,
+                          acknowledgedStartDate: effectiveAckDate,
+                          stage6TargetSlaDays,
+                          contractsEndorser: val,
+                          targetSalesLead,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-amber-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  >
+                    <option value="">Select Contracts Lead / Specialist...</option>
+                    {resources
+                      ?.filter((r) => r.role?.toLowerCase().includes('contract') || r.role?.toLowerCase().includes('legal') || r.department?.toLowerCase().includes('legal') || r.department?.toLowerCase().includes('contract'))
+                      .map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name} ({r.role})
+                        </option>
+                      ))}
+                    {(!resources || resources.filter((r) => r.role?.toLowerCase().includes('contract') || r.role?.toLowerCase().includes('legal')).length === 0) &&
+                      resources?.map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name} ({r.role})
+                        </option>
+                      ))}
+                    {opportunity.contractsProcessor && !resources?.some((r) => r.name === opportunity.contractsProcessor) && (
+                      <option value={opportunity.contractsProcessor}>{opportunity.contractsProcessor}</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Finance Approved Commercial Summary */}
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Finance-Approved Commercial Summary & Clearances
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Approved by: <span className="font-semibold text-slate-700">{financeApprover}</span> {financeApprovedAt ? `on ${formatDate(financeApprovedAt)}` : ''}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Approved Deal Value (TCV)</span>
+                  <span className="text-sm font-bold text-slate-900 block mt-0.5">
+                    {formatCurrency(opportunity.dealValue, opportunity.currency)}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Approved Gross Margin</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-sm font-bold text-emerald-700">
+                      {grossMarginPercent.toFixed(1)}%
+                    </span>
+                    <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-100 text-emerald-800 rounded">
+                      Verified
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Contract Classification</span>
+                  <span className="text-xs font-bold text-slate-800 block mt-0.5 truncate">
+                    {contractTypeDisplay}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Assigned Sales Executive</span>
+                  <span className="text-xs font-bold text-slate-800 block mt-0.5 truncate">
+                    {targetSalesLead || opportunity.salesLead || 'Sales Executive'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Finance Clearance Comments */}
+              <div className="p-2.5 bg-purple-50/70 border border-purple-200 rounded-lg">
+                <span className="text-[10px] font-bold text-purple-900 uppercase block mb-0.5">
+                  Finance Commercial Signoff Notes
+                </span>
+                <p className="text-xs text-purple-950 italic">
+                  "{financeNotes}"
+                </p>
+              </div>
+
+              {/* Verified Proposal Doc Link */}
+              {propLink && (
+                <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-slate-600 truncate font-medium">
+                      Client-Facing Proposal Doc: <span className="text-slate-900 font-semibold">{propLink}</span>
+                    </span>
+                  </div>
+                  {propLink.startsWith('http') && (
+                    <a
+                      href={propLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 font-bold hover:underline shrink-0 inline-flex items-center gap-1 ml-2"
+                    >
+                      Open Doc
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Contracts Endorsement Notes & Guidance for Sales Team */}
+            <div className="space-y-3 p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="font-bold text-slate-900 text-xs">
+                Contracts Endorsement & Commercial Guidance for Sales Buyoff:
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block text-xs mb-1">
+                    Designated Sales Lead for Client Buyoff
+                  </label>
+                  <select
+                    value={targetSalesLead}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        salesLead: val || opportunity.salesLead,
+                        contractsEndorsementData: {
+                          ...opportunity.contractsEndorsementData,
+                          stage6TriggerDate,
+                          acknowledgedStartDate: effectiveAckDate,
+                          stage6TargetSlaDays,
+                          contractsEndorser,
+                          targetSalesLead: val,
+                          endorsementNotes,
+                          commercialGuidanceNotes: commercialGuidance,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium"
+                  >
+                    <option value="">Select Sales Lead...</option>
+                    {resources
+                      ?.filter((r) => r.role?.toLowerCase().includes('sales') || r.department?.toLowerCase().includes('sales') || r.department?.toLowerCase().includes('commercial'))
+                      .map((r) => (
+                        <option key={r.id} value={r.name}>
+                          {r.name} ({r.role})
+                        </option>
+                      ))}
+                    {opportunity.salesLead && !resources?.some((r) => r.name === opportunity.salesLead) && (
+                      <option value={opportunity.salesLead}>{opportunity.salesLead}</option>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 block text-xs mb-1">
+                    Commercial & Legal Guardrails for Sales
+                  </label>
+                  <input
+                    type="text"
+                    value={commercialGuidance}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        contractsEndorsementData: {
+                          ...opportunity.contractsEndorsementData,
+                          stage6TriggerDate,
+                          acknowledgedStartDate: effectiveAckDate,
+                          stage6TargetSlaDays,
+                          contractsEndorser,
+                          targetSalesLead,
+                          endorsementNotes,
+                          commercialGuidanceNotes: val,
+                        }
+                      });
+                    }}
+                    placeholder="e.g. Max 5% discount flexibility; Net 30 payment terms..."
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block text-xs mb-1">
+                  Contracts Endorsement Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={endorsementNotes}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onUpdateOpportunity({
+                      ...opportunity,
+                      contractsEndorsementNotes: val,
+                      contractsEndorsementData: {
+                        ...opportunity.contractsEndorsementData,
+                        stage6TriggerDate,
+                        acknowledgedStartDate: effectiveAckDate,
+                        stage6TargetSlaDays,
+                        contractsEndorser,
+                        targetSalesLead,
+                        endorsementNotes: val,
+                        commercialGuidanceNotes: commercialGuidance,
+                      }
+                    });
+                  }}
+                  placeholder="Record legal/contracts verification remarks, proposal code confirmation, and instructions for Sales team..."
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRejectStage) {
+                    onRejectStage('INITIAL_FINANCE_APPROVAL', comments || endorsementNotes || 'Returned by Contracts to Finance for commercial/margin re-evaluation.');
+                  }
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 shadow-2xs transition-all cursor-pointer gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                Return to Finance for Margin/Pricing Re-evaluation
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const endorseDate = new Date().toISOString();
+                  const extraUpdates: Partial<Opportunity> = {
+                    contractsEndorsementNotes: endorsementNotes || comments,
+                    contractsEndorsementData: {
+                      ...opportunity.contractsEndorsementData,
+                      stage6TriggerDate,
+                      acknowledgedStartDate: effectiveAckDate,
+                      stage6TargetSlaDays,
+                      contractsEndorser: contractsEndorser || 'Contracts Team',
+                      targetSalesLead: targetSalesLead || opportunity.salesLead,
+                      endorsementNotes: endorsementNotes || comments || 'Finance-approved proposal endorsed to Sales for client buyoff.',
+                      endorsedBy: contractsEndorser || 'Contracts Team',
+                      endorsedAt: endorseDate,
+                      commercialGuidanceNotes: commercialGuidance,
+                    }
+                  };
+                  onAdvanceStage(
+                    'CLIENT_BUYOFF_NEGOTIATION',
+                    'Proposal Endorsed to Sales Team for Buyoff',
+                    comments || endorsementNotes || 'Contracts team endorsed Finance-approved proposal to Sales for client presentation and commercial buyoff.',
+                    extraUpdates
+                  );
+                }}
+                className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs transition-all cursor-pointer gap-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Endorse Proposal to Sales Team for Client Buyoff
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* STAGE 7: CLIENT BUYOFF & NEGOTIATION */}
       {currentStage === 'CLIENT_BUYOFF_NEGOTIATION' && (
         <div className="space-y-4 text-xs">
           <div className="p-3.5 bg-white rounded-lg border border-slate-200 space-y-2">
@@ -4576,7 +5004,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 7: CONTRACT & AGREEMENT CONVERSION */}
+      {/* STAGE 8: CONTRACT & AGREEMENT CONVERSION */}
       {currentStage === 'CONTRACT_CONVERSION' && (
         <div className="space-y-4 text-xs">
           <div className="p-3.5 bg-white rounded-lg border border-slate-200">
@@ -4650,7 +5078,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 8: FINAL FINANCE APPROVAL */}
+      {/* STAGE 9: FINAL FINANCE APPROVAL */}
       {currentStage === 'FINAL_FINANCE_APPROVAL' && (
         <div className="space-y-4 text-xs">
           <div className="p-4 bg-white rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -4689,7 +5117,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 9: DOCUSIGN & CLIENT ROUTING */}
+      {/* STAGE 10: DOCUSIGN & CLIENT ROUTING */}
       {currentStage === 'DOCUSIGN_CLIENT_ROUTING' && (
         <div className="space-y-4 text-xs">
           <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
@@ -4775,7 +5203,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 10: WIN NOTIFICATION RELEASE */}
+      {/* STAGE 11: WIN NOTIFICATION RELEASE */}
       {currentStage === 'WIN_NOTIFICATION' && (
         <div className="space-y-4 text-xs">
           <div className="flex items-center justify-between">
@@ -4868,7 +5296,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 11: PARALLEL EXECUTION (FINANCE & PMO TRACKS) */}
+      {/* STAGE 12: PARALLEL EXECUTION (FINANCE & PMO TRACKS) */}
       {currentStage === 'PARALLEL_EXECUTION' && (
         <div className="space-y-4 text-xs">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -5021,7 +5449,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 12: CERTIFICATE OF WORK COMPLETION (CWC) */}
+      {/* STAGE 13: CERTIFICATE OF WORK COMPLETION (CWC) */}
       {currentStage === 'CWC_DELIVERY' && (
         <div className="space-y-4 text-xs">
           <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
@@ -5105,7 +5533,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 13: FINANCE BILLING ENDORSEMENT */}
+      {/* STAGE 14: FINANCE BILLING ENDORSEMENT */}
       {currentStage === 'FINANCE_BILLING_ENDORSEMENT' && (
         <div className="space-y-4 text-xs">
           <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
@@ -5182,7 +5610,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         </div>
       )}
 
-      {/* STAGE 14: DEAL CLOSED */}
+      {/* STAGE 15: DEAL CLOSED */}
       {currentStage === 'DEAL_CLOSED' && (
         <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 text-xs space-y-2">
           <div className="flex items-center space-x-2 text-emerald-900 font-bold text-sm">

@@ -495,7 +495,7 @@ export const INITIAL_FORM_SELECTORS: FormSelectorsConfig = {
       id: 'stat-1',
       label: 'Active',
       value: 'Active',
-      description: 'Opportunity actively progressing through the 14-stage workflow pipeline.',
+      description: 'Opportunity actively progressing through the 15-stage workflow pipeline.',
       color: 'emerald',
       isDefault: true,
       isActive: true,

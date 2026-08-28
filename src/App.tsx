@@ -4,7 +4,7 @@ import { INITIAL_OPPORTUNITIES } from './data/mockOpportunities';
 import { INITIAL_CLIENTS } from './data/mockClients';
 import { INITIAL_RESOURCES } from './data/mockResources';
 import { INITIAL_FORM_SELECTORS } from './data/mockFormSelectors';
-import { STAGE_MAP, WORKFLOW_STAGES } from './data/stages';
+import { STAGE_MAP, WORKFLOW_STAGES, ensureValid15Stages } from './data/stages';
 import { Navbar } from './components/Navbar';
 import { StakeholderDashboard } from './components/StakeholderDashboard';
 import { OpportunityList } from './components/OpportunityList';
@@ -47,9 +47,7 @@ export default function App() {
       const saved = localStorage.getItem(STAGE_SLAS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        return ensureValid15Stages(parsed);
       }
     } catch (e) {
       console.error('Failed to load stored stage SLAs:', e);
@@ -184,7 +182,11 @@ export default function App() {
         unsubscribeStages = subscribeStageDefinitions(
           (dbStages) => {
             if (dbStages && Array.isArray(dbStages) && dbStages.length > 0) {
-              setStageDefinitions(dbStages);
+              const validated = ensureValid15Stages(dbStages);
+              setStageDefinitions(validated);
+              if (dbStages.length !== WORKFLOW_STAGES.length) {
+                saveStageDefinitionsToDb(validated);
+              }
             }
           },
           (err) => console.error('Firestore stages error:', err)
@@ -301,7 +303,8 @@ export default function App() {
     oppId: string,
     nextStage: WorkflowStage,
     actionName: string,
-    comments: string
+    comments: string,
+    extraUpdates?: Partial<Opportunity>
   ) => {
     const now = new Date().toISOString();
     const actorName = currentRole === 'ALL' ? 'Executive Stakeholder' : `${currentRole} Lead`;
@@ -327,14 +330,15 @@ export default function App() {
       prev.map((opp) => {
         if (opp.id !== oppId) return opp;
 
-        const newHistoryEntry = createHistoryEntry(opp.dealValue, opp.currency);
+        const baseMerged = extraUpdates ? { ...opp, ...extraUpdates } : opp;
+        const newHistoryEntry = createHistoryEntry(baseMerged.dealValue, baseMerged.currency);
 
         const updated = {
-          ...opp,
+          ...baseMerged,
           currentStage: nextStage,
           stageEnteredAt: now,
           updatedAt: now,
-          history: [...(opp.history || []), newHistoryEntry],
+          history: [...(baseMerged.history || []), newHistoryEntry],
         };
         updatedRecord = updated;
         return updated;
@@ -343,13 +347,14 @@ export default function App() {
 
     setSelectedOpportunity((prev) => {
       if (!prev || prev.id !== oppId) return prev;
-      const newHistoryEntry = createHistoryEntry(prev.dealValue, prev.currency);
+      const baseMerged = extraUpdates ? { ...prev, ...extraUpdates } : prev;
+      const newHistoryEntry = createHistoryEntry(baseMerged.dealValue, baseMerged.currency);
       return {
-        ...prev,
+        ...baseMerged,
         currentStage: nextStage,
         stageEnteredAt: now,
         updatedAt: now,
-        history: [...(prev.history || []), newHistoryEntry],
+        history: [...(baseMerged.history || []), newHistoryEntry],
       };
     });
 
@@ -647,7 +652,7 @@ export default function App() {
       <footer className="bg-white border-t border-slate-200 mt-12 py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            End-to-End Enterprise Opportunity Tracker • 14 Lifecycle Stages & Organization Directory
+            End-to-End Enterprise Opportunity Tracker • 15 Lifecycle Stages & Organization Directory
           </div>
           <div className="flex items-center space-x-3">
             <span>Sales Intake → Contracts & Finance → DocuSign WIN → PMO CWC → Billing</span>

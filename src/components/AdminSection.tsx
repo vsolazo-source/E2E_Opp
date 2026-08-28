@@ -248,7 +248,7 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
                 </h2>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
-                  Synced • 14 Lifecycle Stages
+                  Synced • 15 Lifecycle Stages
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
@@ -442,7 +442,7 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
               </div>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200 shrink-0 ml-1 flex items-center space-x-1">
                 <ShieldAlert className="w-2.5 h-2.5 text-blue-500" />
-                <span>14 Stages</span>
+                <span>15 Stages</span>
               </span>
             </button>
 

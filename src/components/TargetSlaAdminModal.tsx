@@ -26,7 +26,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { StageDefinition, WorkflowStage, StakeholderRole, Opportunity } from '../types';
-import { WORKFLOW_STAGES, STAGE_MAP } from '../data/stages';
+import { WORKFLOW_STAGES, STAGE_MAP, ensureValid15Stages } from '../data/stages';
 import { getSlaStatus } from '../utils/formatters';
 
 interface TargetSlaAdminModalProps {
@@ -50,15 +50,16 @@ export const SLA_PRESETS: Record<string, SlaPreset> = {
   STANDARD: {
     id: 'STANDARD',
     name: 'Standard Enterprise Baseline',
-    badge: '66 Days E2E',
+    badge: '68 Days E2E',
     description: 'Balanced enterprise workflow designed for multi-stakeholder commercial, legal, and delivery governance.',
-    totalDays: 66,
+    totalDays: 68,
     stages: {
       OPPORTUNITY_INTAKE: 2,
       SOLUTION_DESIGN: 5,
       SALES_PROPOSAL_REVIEW: 2,
       CONTRACTS_PROPOSAL_REVIEW: 3,
       INITIAL_FINANCE_APPROVAL: 2,
+      CONTRACTS_PROPOSAL_ENDORSEMENT: 2,
       CLIENT_BUYOFF_NEGOTIATION: 7,
       CONTRACT_CONVERSION: 4,
       FINAL_FINANCE_APPROVAL: 2,
@@ -73,15 +74,16 @@ export const SLA_PRESETS: Record<string, SlaPreset> = {
   FAST_TRACK: {
     id: 'FAST_TRACK',
     name: 'Fast-Track / Agile Delivery',
-    badge: '32 Days E2E',
+    badge: '33 Days E2E',
     description: 'Accelerated turnaround for high-velocity standard deals, renewals, and streamlined RFP responses.',
-    totalDays: 32,
+    totalDays: 33,
     stages: {
       OPPORTUNITY_INTAKE: 1,
       SOLUTION_DESIGN: 3,
       SALES_PROPOSAL_REVIEW: 1,
       CONTRACTS_PROPOSAL_REVIEW: 2,
       INITIAL_FINANCE_APPROVAL: 1,
+      CONTRACTS_PROPOSAL_ENDORSEMENT: 1,
       CLIENT_BUYOFF_NEGOTIATION: 4,
       CONTRACT_CONVERSION: 2,
       FINAL_FINANCE_APPROVAL: 1,
@@ -96,15 +98,16 @@ export const SLA_PRESETS: Record<string, SlaPreset> = {
   STRATEGIC_LARGE: {
     id: 'STRATEGIC_LARGE',
     name: 'Strategic & High-Governance Deals',
-    badge: '95 Days E2E',
+    badge: '98 Days E2E',
     description: 'Extended validation periods for complex Tier-1 enterprise deals with multi-tier approvals and bespoke MSA clauses.',
-    totalDays: 95,
+    totalDays: 98,
     stages: {
       OPPORTUNITY_INTAKE: 3,
       SOLUTION_DESIGN: 10,
       SALES_PROPOSAL_REVIEW: 3,
       CONTRACTS_PROPOSAL_REVIEW: 5,
       INITIAL_FINANCE_APPROVAL: 4,
+      CONTRACTS_PROPOSAL_ENDORSEMENT: 3,
       CLIENT_BUYOFF_NEGOTIATION: 14,
       CONTRACT_CONVERSION: 7,
       FINAL_FINANCE_APPROVAL: 3,
@@ -127,13 +130,13 @@ export const TargetSlaAdminModal: React.FC<TargetSlaAdminModalProps> = ({
 }) => {
   // Working copy of stage definitions
   const [workingStages, setWorkingStages] = useState<StageDefinition[]>(() => {
-    return stageDefinitions && stageDefinitions.length > 0 ? stageDefinitions : WORKFLOW_STAGES;
+    return ensureValid15Stages(stageDefinitions);
   });
 
   // Re-sync when modal opens
   React.useEffect(() => {
     if (isOpen) {
-      setWorkingStages(stageDefinitions && stageDefinitions.length > 0 ? stageDefinitions : WORKFLOW_STAGES);
+      setWorkingStages(ensureValid15Stages(stageDefinitions));
       setSaveSuccess(false);
     }
   }, [isOpen, stageDefinitions]);
@@ -149,9 +152,9 @@ export const TargetSlaAdminModal: React.FC<TargetSlaAdminModalProps> = ({
   // Group definitions for phases
   const PHASES = [
     { id: '1', name: 'Phase 1: Presales & Architecture', count: 3, range: [1, 2, 3] },
-    { id: '2', name: 'Phase 2: Legal & Commercial Buyoff', count: 3, range: [4, 5, 6] },
-    { id: '3', name: 'Phase 3: Contract & WIN Broadcast', count: 4, range: [7, 8, 9, 10] },
-    { id: '4', name: 'Phase 4: Delivery, CWC & Billing', count: 4, range: [11, 12, 13, 14] },
+    { id: '2', name: 'Phase 2: Legal & Commercial Buyoff', count: 4, range: [4, 5, 6, 7] },
+    { id: '3', name: 'Phase 3: Contract & WIN Broadcast', count: 4, range: [8, 9, 10, 11] },
+    { id: '4', name: 'Phase 4: Delivery, CWC & Billing', count: 4, range: [12, 13, 14, 15] },
   ];
 
   // Stage Map from working copy
@@ -272,7 +275,7 @@ export const TargetSlaAdminModal: React.FC<TargetSlaAdminModalProps> = ({
 
   // Reset All to Factory Baseline
   const handleResetAllToBaseline = () => {
-    if (window.confirm('Reset all 14 workflow stages to standard baseline SLA turnaround targets?')) {
+    if (window.confirm('Reset all 15 workflow stages to standard baseline SLA turnaround targets?')) {
       setWorkingStages(WORKFLOW_STAGES);
       setSaveSuccess(false);
     }
@@ -423,11 +426,11 @@ export const TargetSlaAdminModal: React.FC<TargetSlaAdminModalProps> = ({
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-400/30 flex items-center space-x-1">
                   <Sliders className="w-3 h-3 text-blue-400" />
-                  <span>14 Stages Configurable</span>
+                  <span>15 Stages Configurable</span>
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-                Define, enforce, and simulate target turnaround Service Level Agreements (SLAs), warning alert thresholds, and escalation triggers across all 14 lifecycle workflow stages.
+                Define, enforce, and simulate target turnaround Service Level Agreements (SLAs), warning alert thresholds, and escalation triggers across all 15 lifecycle workflow stages.
               </p>
             </div>
           </div>
@@ -629,7 +632,7 @@ export const TargetSlaAdminModal: React.FC<TargetSlaAdminModalProps> = ({
                 onChange={(e) => setSelectedPhaseFilter(e.target.value as any)}
                 className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
               >
-                <option value="ALL">All Phases (14 Stages)</option>
+                <option value="ALL">All Phases (15 Stages)</option>
                 {PHASES.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.count})

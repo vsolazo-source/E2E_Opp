@@ -12,7 +12,7 @@ import {
   Zap
 } from 'lucide-react';
 import { Opportunity, StakeholderRole, WorkflowStage, StageDefinition } from '../types';
-import { WORKFLOW_STAGES, STAGE_MAP } from '../data/stages';
+import { WORKFLOW_STAGES, STAGE_MAP, ensureValid15Stages } from '../data/stages';
 import { formatCurrency, getSlaStatus } from '../utils/formatters';
 
 interface StakeholderDashboardProps {
@@ -52,33 +52,41 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
   // Overdue SLA Deals
   const overdueDeals = opportunities.filter((opp) => getSlaStatus(opp, stageDefinitions).isOverdue);
 
-  const activeStages = stageDefinitions && stageDefinitions.length > 0 ? stageDefinitions : WORKFLOW_STAGES;
+  const activeStages = ensureValid15Stages(stageDefinitions);
 
-  // Group stages for visual process map
+  // Group stages for visual process map:
+  // Phase 1: Presales & Architecture (Stages 1, 2, 3)
+  // Phase 2: Legal & Commercial Buyoff (Stages 4, 5, 6, 7)
+  // Phase 3: Contract & WIN Broadcast (Stages 8, 9, 10, 11)
+  // Phase 4: Delivery, CWC & Billing (Stages 12, 13, 14, 15)
   const stageGroups = [
     {
       name: '1. Presales & Architecture',
+      phaseLabel: 'Phase 1 (1-3)',
       color: 'border-blue-200 bg-blue-50/40',
       badgeColor: 'bg-blue-100 text-blue-800',
-      stages: activeStages.slice(0, 3),
+      stages: activeStages.filter((s) => s.index >= 1 && s.index <= 3),
     },
     {
       name: '2. Legal & Commercial Buyoff',
+      phaseLabel: 'Phase 2 (4-7)',
       color: 'border-purple-200 bg-purple-50/40',
       badgeColor: 'bg-purple-100 text-purple-800',
-      stages: activeStages.slice(3, 6),
+      stages: activeStages.filter((s) => s.index >= 4 && s.index <= 7),
     },
     {
       name: '3. Contract & WIN Broadcast',
+      phaseLabel: 'Phase 3 (8-11)',
       color: 'border-amber-200 bg-amber-50/40',
       badgeColor: 'bg-amber-100 text-amber-800',
-      stages: activeStages.slice(6, 10),
+      stages: activeStages.filter((s) => s.index >= 8 && s.index <= 11),
     },
     {
       name: '4. Delivery, CWC & Billing',
+      phaseLabel: 'Phase 4 (12-15)',
       color: 'border-emerald-200 bg-emerald-50/40',
       badgeColor: 'bg-emerald-100 text-emerald-800',
-      stages: activeStages.slice(10, 14),
+      stages: activeStages.filter((s) => s.index >= 12 && s.index <= 15),
     },
   ];
 
@@ -86,13 +94,13 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
   const roleGuidance: Record<StakeholderRole, { title: string; desc: string; focusStage: string }> = {
     ALL: {
       title: 'Executive Real-Time Pipeline & Governance',
-      desc: '360° visibility across all 14 lifecycle stages from Sales Intake to Finance billing & project closeout.',
-      focusStage: '14 Active Lifecycle Stages',
+      desc: '360° visibility across all 15 lifecycle stages from Sales Intake to Finance billing & project closeout.',
+      focusStage: '15 Active Lifecycle Stages',
     },
     SALES: {
       title: 'Sales Executive Workbench',
       desc: 'Track intake opportunities, review architect solution proposals, and lead client commercial negotiations.',
-      focusStage: 'Focus: Stages 1, 3, 6, 9 (DocuSign coordination)',
+      focusStage: 'Focus: Stages 1, 3, 7, 10 (DocuSign coordination)',
     },
     ARCHITECTURE: {
       title: 'Solution Architecture & BU Head Console',
@@ -101,18 +109,18 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
     },
     CONTRACTS: {
       title: 'Contracts, Legal & Compliance Queue',
-      desc: 'Review proposals, convert accepted deals into MSA/SOW contracts, dispatch DocuSign envelopes, and release WIN announcement emails.',
-      focusStage: 'Focus: Stages 4, 7, 9, 10 (WIN Broadcast)',
+      desc: 'Review proposals, endorse to Sales, convert accepted deals into MSA/SOW contracts, dispatch DocuSign envelopes, and release WIN announcement emails.',
+      focusStage: 'Focus: Stages 4, 6, 8, 10, 11 (WIN Broadcast)',
     },
     FINANCE: {
       title: 'Finance & Deal Desk Command Center',
       desc: 'Evaluate gross margins, approve contract TCV, allocate Budget & Contract codes, and endorse CWC milestone billings.',
-      focusStage: 'Focus: Stages 5, 8, 11 (Budget Codes), 13 (Billing)',
+      focusStage: 'Focus: Stages 5, 9, 12 (Budget Codes), 14 (Billing)',
     },
     PMO: {
       title: 'PMO & Project Delivery Execution Hub',
       desc: 'Kick off delivery milestones upon contract win, manage sprint health, and issue Certificate of Work Completion (CWC).',
-      focusStage: 'Focus: Stages 11 (Parallel Delivery) & 12 (CWC Signoff)',
+      focusStage: 'Focus: Stages 12 (Parallel Delivery) & 13 (CWC Signoff)',
     },
   };
 
@@ -232,12 +240,12 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
         </div>
       </div>
 
-      {/* Interactive 14-Stage End-to-End Visual Workflow Pipeline */}
+      {/* Interactive 15-Stage End-to-End Visual Workflow Pipeline */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center">
-              <span>Complete 14-Step Lifecycle Funnel</span>
+              <span>Complete 15-Step Lifecycle Funnel</span>
               <span className="ml-2 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                 Interactive Stage Filter
               </span>
@@ -271,7 +279,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
                   {group.name}
                 </span>
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${group.badgeColor}`}>
-                  Phase {groupIdx + 1}
+                  {group.phaseLabel}
                 </span>
               </div>
 

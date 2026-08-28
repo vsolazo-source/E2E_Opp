@@ -234,7 +234,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Manually edit any opportunity field, override workflow stages across 14 lifecycle steps, or delete records.
+                Manually edit any opportunity field, override workflow stages across 15 lifecycle steps, or delete records.
               </p>
             </div>
           </div>
@@ -948,7 +948,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                   <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                     <h4 className="font-bold text-slate-900 text-xs mb-2">Stakeholder Assignment Status</h4>
                     <p className="text-slate-500 text-[11px] leading-relaxed">
-                      Assigned team members are automatically recognized in role-specific dashboard filters and action sign-offs across Stages 1 through 14.
+                      Assigned team members are automatically recognized in role-specific dashboard filters and action sign-offs across Stages 1 through 15.
                     </p>
                   </div>
                 </div>

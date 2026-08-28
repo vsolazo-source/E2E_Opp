@@ -4,6 +4,7 @@ export type WorkflowStage =
   | 'SALES_PROPOSAL_REVIEW'
   | 'CONTRACTS_PROPOSAL_REVIEW'
   | 'INITIAL_FINANCE_APPROVAL'
+  | 'CONTRACTS_PROPOSAL_ENDORSEMENT'
   | 'CLIENT_BUYOFF_NEGOTIATION'
   | 'CONTRACT_CONVERSION'
   | 'FINAL_FINANCE_APPROVAL'
@@ -111,6 +112,36 @@ export interface InitialFinanceReviewData {
   approvedAt?: string;
   approvedMarginPercent?: number;
   comments?: string;
+}
+
+export interface ContractsEndorsementData {
+  stage6TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage6TargetSlaDays?: number;
+  contractsEndorser?: string;
+  targetSalesLead?: string;
+  endorsementNotes?: string;
+  endorsedAt?: string;
+  endorsedBy?: string;
+  approvedProposalLink?: string;
+  commercialGuidanceNotes?: string;
+}
+
+export interface ClientNegotiationData {
+  stage7TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage7TargetSlaDays?: number;
+  negotiationLead?: string;
+  presentedDate?: string;
+  clientFeedback?: string;
+  agreedDiscountPercent?: number;
+  finalAgreedValue?: number;
+  clientConfirmedDate?: string;
+  status: 'IN_NEGOTIATION' | 'CLIENT_CONFIRMED' | 'REJECTED';
+  buyoffNotes?: string;
+  returnReason?: string;
 }
 
 export interface ContractDetails {
@@ -297,6 +328,8 @@ export interface Opportunity {
     approvedMarginPercent?: number;
     comments?: string;
   };
+  contractsEndorsementData?: ContractsEndorsementData;
+  contractsEndorsementNotes?: string;
   clientNegotiation?: {
     presentedDate?: string;
     clientFeedback?: string;

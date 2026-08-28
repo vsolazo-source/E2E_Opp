@@ -66,7 +66,7 @@ export const StageProgressBar: React.FC<StageProgressBarProps> = ({
                     {stage.shortLabel}
                   </span>
                   <span className="block text-[9px] text-slate-400 truncate">
-                    {stage.actorLabel.split('/')[0]}
+                    {stage.actorLabel?.split('/')[0] || ''}
                   </span>
                 </div>
               </button>

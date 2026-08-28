@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Building2, 
@@ -39,7 +39,7 @@ interface OpportunityDetailModalProps {
   onAddResource?: (newResource: ResourceMember) => void;
   onClose: () => void;
   onUpdateOpportunity: (updated: Opportunity) => void;
-  onAdvanceStage: (oppId: string, nextStage: WorkflowStage, actionName: string, comments: string) => void;
+  onAdvanceStage: (oppId: string, nextStage: WorkflowStage, actionName: string, comments: string, extraUpdates?: Partial<Opportunity>) => void;
 }
 
 export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
@@ -59,11 +59,18 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
   const [activeTab, setActiveTab] = useState<'ACTION' | 'OVERVIEW' | 'SOLUTION_VENDOR' | 'CONTRACTS_LEGAL' | 'PMO_BILLING' | 'AUDIT'>('ACTION');
   const [selectedInspectStage, setSelectedInspectStage] = useState<WorkflowStage>(opportunity.currentStage);
 
+  // Keep inspected stage in sync when the opportunity transitions to a new stage
+  useEffect(() => {
+    if (opportunity) {
+      setSelectedInspectStage(opportunity.currentStage);
+    }
+  }, [opportunity.id, opportunity.currentStage]);
+
   const stageDef = STAGE_MAP[opportunity.currentStage];
   const sla = getSlaStatus(opportunity, stageDefinitions);
 
-  const handleAdvance = (nextStage: WorkflowStage, actionName: string, comments: string) => {
-    onAdvanceStage(opportunity.id, nextStage, actionName, comments);
+  const handleAdvance = (nextStage: WorkflowStage, actionName: string, comments: string, extraUpdates?: Partial<Opportunity>) => {
+    onAdvanceStage(opportunity.id, nextStage, actionName, comments, extraUpdates);
     setSelectedInspectStage(nextStage);
   };
 
@@ -129,7 +136,7 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
           </div>
         </div>
 
-        {/* 14-Stage Progress Stepper */}
+        {/* 15-Stage Progress Stepper */}
         <div className="shrink-0 bg-slate-50 border-b border-slate-200 px-3 sm:px-4 py-1.5">
           <StageProgressBar
             currentStage={opportunity.currentStage}
