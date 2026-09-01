@@ -290,6 +290,39 @@ export const INITIAL_FORM_SELECTORS: FormSelectorsConfig = {
     },
   ],
 
+  servicePillars: [
+    {
+      id: 'sp-1',
+      label: 'Workplace',
+      value: 'Workplace',
+      description: 'Modern digital workplace, end-user computing, endpoint management, collaboration suites, and productivity solutions.',
+      color: 'indigo',
+      isDefault: true,
+      isActive: true,
+      order: 1,
+    },
+    {
+      id: 'sp-2',
+      label: 'Infrastructure',
+      value: 'Infrastructure',
+      description: 'Data center systems, hybrid cloud compute, enterprise storage, virtualization, and platform infrastructure.',
+      color: 'blue',
+      isDefault: false,
+      isActive: true,
+      order: 2,
+    },
+    {
+      id: 'sp-3',
+      label: 'Network',
+      value: 'Network',
+      description: 'Enterprise networking, SD-WAN, core routing, campus switching, perimeter firewalls, and connectivity solutions.',
+      color: 'cyan',
+      isDefault: false,
+      isActive: true,
+      order: 3,
+    },
+  ],
+
   roles: [
     {
       id: 'role-1',
@@ -679,3 +712,24 @@ export const INITIAL_FORM_SELECTORS: FormSelectorsConfig = {
     },
   ],
 };
+
+/**
+ * Validates and normalizes a FormSelectorsConfig object, ensuring all 9 categories
+ * are guaranteed non-empty arrays with safe defaults.
+ */
+export function ensureValidFormSelectors(config?: any): FormSelectorsConfig {
+  if (!config || typeof config !== 'object') {
+    return INITIAL_FORM_SELECTORS;
+  }
+  return {
+    industries: Array.isArray(config.industries) && config.industries.length > 0 ? config.industries : INITIAL_FORM_SELECTORS.industries,
+    departments: Array.isArray(config.departments) && config.departments.length > 0 ? config.departments : INITIAL_FORM_SELECTORS.departments,
+    divisions: Array.isArray(config.divisions) && config.divisions.length > 0 ? config.divisions : INITIAL_FORM_SELECTORS.divisions,
+    servicePillars: Array.isArray(config.servicePillars) && config.servicePillars.length > 0 ? config.servicePillars : INITIAL_FORM_SELECTORS.servicePillars,
+    roles: Array.isArray(config.roles) && config.roles.length > 0 ? config.roles : INITIAL_FORM_SELECTORS.roles,
+    priorities: Array.isArray(config.priorities) && config.priorities.length > 0 ? config.priorities : INITIAL_FORM_SELECTORS.priorities,
+    opportunityStatuses: Array.isArray(config.opportunityStatuses) && config.opportunityStatuses.length > 0 ? config.opportunityStatuses : INITIAL_FORM_SELECTORS.opportunityStatuses,
+    clientProfiles: Array.isArray(config.clientProfiles) && config.clientProfiles.length > 0 ? config.clientProfiles : INITIAL_FORM_SELECTORS.clientProfiles,
+    contractTypes: Array.isArray(config.contractTypes) && config.contractTypes.length > 0 ? config.contractTypes : INITIAL_FORM_SELECTORS.contractTypes,
+  };
+}

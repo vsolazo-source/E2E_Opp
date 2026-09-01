@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Tag,
   CheckCircle2,
+  Network,
 } from 'lucide-react';
 import {
   FormOptionItem,
@@ -77,6 +78,15 @@ const CATEGORIES: CategoryMeta[] = [
     description: 'Corporate operating divisions and business groups governing strategic practice lines and regional delivery.',
     usedInLocations: ['New Opportunity Division', 'Resource Directory Division', 'Resource Modal', 'Executive Analytics'],
     defaultValuesSummary: 'Financial Services & FinTech, Enterprise Cloud & Infrastructure, Digital Applications & AI, Healthcare & Public Sector, Global Advisory & Consulting...',
+  },
+  {
+    key: 'servicePillar',
+    title: 'Service Pillar Directory',
+    shortTitle: 'Service Pillar',
+    icon: Network,
+    description: 'Master service pillars (Workplace, Infrastructure, Network) categorizing technical solutions, delivery scope, and practice disciplines.',
+    usedInLocations: ['New Opportunity Modal', 'Opportunity Admin Edit Modal', 'Stage Workload Allocation', 'Solution Scoping'],
+    defaultValuesSummary: 'Workplace, Infrastructure, Network',
   },
   {
     key: 'role',
@@ -144,8 +154,6 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
   config,
   onUpdateConfig,
 }) => {
-  if (!isOpen) return null;
-
   const [activeCategory, setActiveCategory] = useState<FormSelectorCategoryKey>('industry');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -170,6 +178,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
       industries: Array.isArray(config?.industries) && config.industries.length > 0 ? config.industries : INITIAL_FORM_SELECTORS.industries,
       departments: Array.isArray(config?.departments) && config.departments.length > 0 ? config.departments : INITIAL_FORM_SELECTORS.departments,
       divisions: Array.isArray(config?.divisions) && config.divisions.length > 0 ? config.divisions : INITIAL_FORM_SELECTORS.divisions,
+      servicePillars: Array.isArray(config?.servicePillars) && config.servicePillars.length > 0 ? config.servicePillars : INITIAL_FORM_SELECTORS.servicePillars,
       roles: Array.isArray(config?.roles) && config.roles.length > 0 ? config.roles : INITIAL_FORM_SELECTORS.roles,
       priorities: Array.isArray(config?.priorities) && config.priorities.length > 0 ? config.priorities : INITIAL_FORM_SELECTORS.priorities,
       opportunityStatuses: Array.isArray(config?.opportunityStatuses) && config.opportunityStatuses.length > 0 ? config.opportunityStatuses : INITIAL_FORM_SELECTORS.opportunityStatuses,
@@ -192,6 +201,8 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
         return safeConfig.departments;
       case 'division':
         return safeConfig.divisions;
+      case 'servicePillar':
+        return safeConfig.servicePillars;
       case 'role':
         return safeConfig.roles;
       case 'priority':
@@ -225,6 +236,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
       safeConfig.industries.length +
       safeConfig.departments.length +
       safeConfig.divisions.length +
+      safeConfig.servicePillars.length +
       safeConfig.roles.length +
       safeConfig.priorities.length +
       safeConfig.opportunityStatuses.length +
@@ -235,6 +247,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
       safeConfig.industries.filter((i) => i.isActive !== false).length +
       safeConfig.departments.filter((i) => i.isActive !== false).length +
       safeConfig.divisions.filter((i) => i.isActive !== false).length +
+      safeConfig.servicePillars.filter((i) => i.isActive !== false).length +
       safeConfig.roles.filter((i) => i.isActive !== false).length +
       safeConfig.priorities.filter((i) => i.isActive !== false).length +
       safeConfig.opportunityStatuses.filter((i) => i.isActive !== false).length +
@@ -251,6 +264,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
       ...(activeCategory === 'industry' && { industries: newItems }),
       ...(activeCategory === 'department' && { departments: newItems }),
       ...(activeCategory === 'division' && { divisions: newItems }),
+      ...(activeCategory === 'servicePillar' && { servicePillars: newItems }),
       ...(activeCategory === 'role' && { roles: newItems }),
       ...(activeCategory === 'priority' && { priorities: newItems }),
       ...(activeCategory === 'opportunityStatus' && { opportunityStatuses: newItems }),
@@ -414,6 +428,8 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
         ? 'departments'
         : activeCategory === 'division'
         ? 'divisions'
+        : activeCategory === 'servicePillar'
+        ? 'servicePillars'
         : activeCategory === 'role'
         ? 'roles'
         : activeCategory === 'priority'
@@ -458,6 +474,8 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
     const found = PRESET_COLORS.find((c) => c.value === colorName);
     return found ? found.bg : 'bg-slate-100 text-slate-800 border-slate-200';
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
@@ -523,6 +541,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
                 if (cat.key === 'industry') count = safeConfig.industries.length;
                 else if (cat.key === 'department') count = safeConfig.departments.length;
                 else if (cat.key === 'division') count = safeConfig.divisions.length;
+                else if (cat.key === 'servicePillar') count = safeConfig.servicePillars.length;
                 else if (cat.key === 'role') count = safeConfig.roles.length;
                 else if (cat.key === 'priority') count = safeConfig.priorities.length;
                 else if (cat.key === 'opportunityStatus') count = safeConfig.opportunityStatuses.length;

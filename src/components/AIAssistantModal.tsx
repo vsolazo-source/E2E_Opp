@@ -13,8 +13,6 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   onClose,
   opportunities,
 }) => {
-  if (!isOpen) return null;
-
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; text: string }[]>([
     {
@@ -72,6 +70,8 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
       setIsLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">

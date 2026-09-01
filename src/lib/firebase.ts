@@ -11,7 +11,7 @@ import {
   query,
   orderBy
 } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import rawFirebaseConfig from '../../firebase-applet-config.json';
 import { 
   Opportunity, 
   ClientOrganization, 
@@ -24,6 +24,18 @@ import { INITIAL_CLIENTS } from '../data/mockClients';
 import { INITIAL_RESOURCES } from '../data/mockResources';
 import { INITIAL_FORM_SELECTORS } from '../data/mockFormSelectors';
 import { WORKFLOW_STAGES } from '../data/stages';
+
+// Build Firebase configuration supporting both environment variables (e.g. on Vercel) and config file
+const firebaseConfig = {
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || rawFirebaseConfig.projectId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || rawFirebaseConfig.appId,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || rawFirebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || rawFirebaseConfig.authDomain,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || rawFirebaseConfig.firestoreDatabaseId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || rawFirebaseConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || rawFirebaseConfig.messagingSenderId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || rawFirebaseConfig.measurementId || '',
+};
 
 // Initialize Firebase App
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

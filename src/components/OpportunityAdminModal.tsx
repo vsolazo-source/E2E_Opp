@@ -40,6 +40,8 @@ import {
   Eye,
 } from 'lucide-react';
 import { WORKFLOW_STAGES, STAGE_MAP, BU_LABELS } from '../data/stages';
+import { generateOpportunityCode } from '../lib/opportunityCode';
+import { ensureValidFormSelectors } from '../data/mockFormSelectors';
 
 interface OpportunityAdminModalProps {
   isOpen: boolean;
@@ -96,6 +98,34 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Safe Form Selectors
+  const safeFormSelectors = useMemo(() => ensureValidFormSelectors(formSelectors), [formSelectors]);
+
+  const activeIndustries = useMemo(
+    () => (safeFormSelectors.industries || []).filter((i) => i.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activeDepartments = useMemo(
+    () => (safeFormSelectors.departments || []).filter((d) => d.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activeDivisions = useMemo(
+    () => (safeFormSelectors.divisions || []).filter((div) => div.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activeServicePillars = useMemo(
+    () => (safeFormSelectors.servicePillars || []).filter((sp) => sp.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activePriorities = useMemo(
+    () => (safeFormSelectors.priorities || []).filter((p) => p.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activeOpportunityStatuses = useMemo(
+    () => (safeFormSelectors.opportunityStatuses || []).filter((s) => s.isActive !== false),
+    [safeFormSelectors]
+  );
 
   // Filtered list
   const filteredOpportunities = useMemo(() => {
@@ -727,13 +757,34 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-700 block mb-1">Tracking Code *</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">Opportunity Code *</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newCode = generateOpportunityCode({
+                              division: editingOpp.division,
+                              businessUnit: editingOpp.businessUnit,
+                              createdAt: editingOpp.createdAt,
+                              existingOpportunities: opportunities.filter((o) => o.id !== editingOpp.id),
+                            });
+                            setEditingOpp({ ...editingOpp, trackingCode: newCode });
+                          }}
+                          className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer flex items-center space-x-1"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>Format (DIV-BU-OPP-YYYY-NNN)</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         value={editingOpp.trackingCode}
                         onChange={(e) => setEditingOpp({ ...editingOpp, trackingCode: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       />
+                      <span className="text-[10px] text-slate-400 mt-0.5 block font-mono">
+                        Format: DIV-BU-OPP-YYYY-NNN (e.g. FSF-CI-OPP-2026-001)
+                      </span>
                     </div>
                   </div>
 
@@ -765,14 +816,42 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
 
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">Client Industry</label>
-                      <input
-                        type="text"
+                      <select
                         value={editingOpp.clientIndustry || ''}
                         onChange={(e) => setEditingOpp({ ...editingOpp, clientIndustry: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      />
+                      >
+                        {editingOpp.clientIndustry && !activeIndustries.some((i) => i.value === editingOpp.clientIndustry) && (
+                          <option value={editingOpp.clientIndustry}>{editingOpp.clientIndustry} (Current)</option>
+                        )}
+                        {activeIndustries.map((ind) => (
+                          <option key={ind.id} value={ind.value}>
+                            {ind.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Operating Division *</label>
+                      <select
+                        value={editingOpp.division || activeDivisions[0]?.value || 'Financial Services & FinTech'}
+                        onChange={(e) => setEditingOpp({ ...editingOpp, division: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      >
+                        {editingOpp.division && !activeDivisions.some((d) => d.value === editingOpp.division) && (
+                          <option value={editingOpp.division}>{editingOpp.division} (Current)</option>
+                        )}
+                        {activeDivisions.map((div) => (
+                          <option key={div.id} value={div.value}>
+                            {div.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">Business Unit / Dept *</label>
                       <select
@@ -780,16 +859,55 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                         onChange={(e) => setEditingOpp({ ...editingOpp, businessUnit: e.target.value as any })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       >
-                        {Object.entries(BU_LABELS).map(([k, v]) => (
-                          <option key={k} value={k}>
-                            {v}
+                        {editingOpp.businessUnit && !activeDepartments.some((d) => d.value === editingOpp.businessUnit) && (
+                          <option value={editingOpp.businessUnit}>
+                            {BU_LABELS[editingOpp.businessUnit as keyof typeof BU_LABELS] || editingOpp.businessUnit} (Current)
+                          </option>
+                        )}
+                        {activeDepartments.map((dept) => (
+                          <option key={dept.id} value={dept.value}>
+                            {dept.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Service Pillar</label>
+                      <select
+                        value={editingOpp.servicePillar || ''}
+                        onChange={(e) => setEditingOpp({ ...editingOpp, servicePillar: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      >
+                        <option value="">-- None / Blank (Optional) --</option>
+                        {editingOpp.servicePillar && !activeServicePillars.some((sp) => sp.value === editingOpp.servicePillar) && (
+                          <option value={editingOpp.servicePillar}>{editingOpp.servicePillar} (Current)</option>
+                        )}
+                        {activeServicePillars.map((sp) => (
+                          <option key={sp.id} value={sp.value}>
+                            {sp.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Priority</label>
+                      <select
+                        value={editingOpp.priority}
+                        onChange={(e) => setEditingOpp({ ...editingOpp, priority: e.target.value as any })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      >
+                        {activePriorities.map((p) => (
+                          <option key={p.id} value={p.value}>
+                            {p.label}
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">Deal Value (TCV) *</label>
                       <input
@@ -807,11 +925,14 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                         onChange={(e) => setEditingOpp({ ...editingOpp, currency: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       >
-                        <option value="USD">USD ($)</option>
                         <option value="PHP">PHP (₱)</option>
+                        <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="SGD">SGD (S$)</option>
                         <option value="GBP">GBP (£)</option>
+                        <option value="AUD">AUD (A$)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="CAD">CAD (C$)</option>
                       </select>
                     </div>
 
@@ -825,20 +946,6 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                         onChange={(e) => setEditingOpp({ ...editingOpp, probability: Number(e.target.value) })}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                       />
-                    </div>
-
-                    <div>
-                      <label className="font-bold text-slate-700 block mb-1">Priority</label>
-                      <select
-                        value={editingOpp.priority}
-                        onChange={(e) => setEditingOpp({ ...editingOpp, priority: e.target.value as any })}
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      >
-                        <option value="LOW">Low</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="HIGH">High</option>
-                        <option value="CRITICAL">Critical</option>
-                      </select>
                     </div>
                   </div>
 

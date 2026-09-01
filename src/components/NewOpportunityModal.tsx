@@ -17,8 +17,16 @@ import {
   Link2,
   Coins,
   ArrowRight,
+  Network,
 } from 'lucide-react';
 import { Opportunity, ClientOrganization, ResourceMember, FormSelectorsConfig } from '../types';
+import { ensureValidFormSelectors } from '../data/mockFormSelectors';
+import {
+  generateOpportunityCode,
+  previewOpportunityCode,
+  getDivisionCode,
+  getBusinessUnitCode,
+} from '../lib/opportunityCode';
 
 export const SUPPORTED_CURRENCIES = [
   { code: 'PHP', symbol: '₱', label: 'PHP (₱ - Philippine Peso)' },
@@ -35,6 +43,7 @@ interface NewOpportunityModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (opportunity: Opportunity) => void;
+  opportunities?: Opportunity[];
   clients?: ClientOrganization[];
   resources?: ResourceMember[];
   formSelectors?: FormSelectorsConfig;
@@ -44,35 +53,43 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
   isOpen,
   onClose,
   onCreate,
+  opportunities = [],
   clients = [],
   resources = [],
   formSelectors,
 }) => {
   // Available dropdown options from Form Selectors
+  const safeFormSelectors = useMemo(() => ensureValidFormSelectors(formSelectors), [formSelectors]);
+
   const activeIndustries = useMemo(
-    () => (formSelectors?.industries || []).filter((i) => i.isActive !== false),
-    [formSelectors]
+    () => (safeFormSelectors.industries || []).filter((i) => i.isActive !== false),
+    [safeFormSelectors]
   );
   const activeDepartments = useMemo(
-    () => (formSelectors?.departments || []).filter((d) => d.isActive !== false),
-    [formSelectors]
+    () => (safeFormSelectors.departments || []).filter((d) => d.isActive !== false),
+    [safeFormSelectors]
   );
   const activeDivisions = useMemo(
-    () => (formSelectors?.divisions || []).filter((div) => div.isActive !== false),
-    [formSelectors]
+    () => (safeFormSelectors.divisions || []).filter((div) => div.isActive !== false),
+    [safeFormSelectors]
+  );
+  const activeServicePillars = useMemo(
+    () => (safeFormSelectors.servicePillars || []).filter((sp) => sp.isActive !== false),
+    [safeFormSelectors]
   );
   const activePriorities = useMemo(
-    () => (formSelectors?.priorities || []).filter((p) => p.isActive !== false),
-    [formSelectors]
+    () => (safeFormSelectors.priorities || []).filter((p) => p.isActive !== false),
+    [safeFormSelectors]
   );
   const activeStatuses = useMemo(
-    () => (formSelectors?.opportunityStatuses || []).filter((s) => s.isActive !== false),
-    [formSelectors]
+    () => (safeFormSelectors.opportunityStatuses || []).filter((s) => s.isActive !== false),
+    [safeFormSelectors]
   );
 
   const defaultIndustry = activeIndustries.find((i) => i.isDefault)?.value || activeIndustries[0]?.value || 'Banking & Financial Services';
   const defaultDept = activeDepartments.find((d) => d.isDefault)?.value || activeDepartments[0]?.value || 'Cloud & Infrastructure';
   const defaultDivision = activeDivisions.find((div) => div.isDefault)?.value || activeDivisions[0]?.value || 'Financial Services & FinTech';
+  const defaultServicePillar = activeServicePillars.find((sp) => sp.isDefault)?.value || '';
   const defaultPriority = activePriorities.find((p) => p.isDefault)?.value || activePriorities[0]?.value || 'HIGH';
   const defaultStatus = activeStatuses.find((s) => s.isDefault)?.value || activeStatuses[0]?.value || 'Active';
 
@@ -115,6 +132,7 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
   const [salesLead, setSalesLead] = useState('');
   const [division, setDivision] = useState<string>(defaultDivision);
   const [businessUnit, setBusinessUnit] = useState<string>(defaultDept);
+  const [servicePillar, setServicePillar] = useState<string>(defaultServicePillar);
   const [priority, setPriority] = useState<string>(defaultPriority);
   const [status, setStatus] = useState<string>(defaultStatus);
   const [torLink, setTorLink] = useState('');
@@ -126,12 +144,20 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
     return clients.find((c) => c.name.toLowerCase() === clientName.trim().toLowerCase()) || null;
   }, [clientName, clients]);
 
+  const liveOpportunityCode = useMemo(() => {
+    return previewOpportunityCode(division, businessUnit, opportunities);
+  }, [division, businessUnit, opportunities]);
+
+  const divCode = useMemo(() => getDivisionCode(division), [division]);
+  const buCode = useMemo(() => getBusinessUnitCode(businessUnit), [businessUnit]);
+
   // Sync initial state when modal opens
   useEffect(() => {
     if (isOpen) {
       setClientIndustry(defaultIndustry);
       setDivision(defaultDivision);
       setBusinessUnit(defaultDept);
+      setServicePillar(defaultServicePillar);
       setPriority(defaultPriority);
       setStatus(defaultStatus);
       setCurrency('PHP');
@@ -139,7 +165,7 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
         setSalesLead(salesLeadOptions[0].name);
       }
     }
-  }, [isOpen, defaultIndustry, defaultDivision, defaultDept, defaultPriority, defaultStatus, salesLeadOptions]);
+  }, [isOpen, defaultIndustry, defaultDivision, defaultDept, defaultServicePillar, defaultPriority, defaultStatus, salesLeadOptions]);
 
   if (!isOpen) return null;
 
@@ -174,10 +200,14 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
     e.preventDefault();
     if (!title.trim() || !clientName.trim()) return;
 
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const trackingCode = `OPP-2026-${randomNum}`;
-    const newId = `opp-${Date.now()}`;
     const now = new Date().toISOString();
+    const trackingCode = generateOpportunityCode({
+      division,
+      businessUnit,
+      createdAt: now,
+      existingOpportunities: opportunities,
+    });
+    const newId = `opp-${Date.now()}`;
 
     const selectedSalesLeadName = salesLead.trim() || salesLeadOptions[0]?.name || 'Sales Executive';
 
@@ -196,6 +226,7 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
       salesLead: selectedSalesLeadName,
       division,
       businessUnit,
+      servicePillar,
       priority,
       status,
       torLink: torLink.trim() || undefined,
@@ -281,6 +312,30 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm">
+          {/* Opportunity Code Live Tag Banner */}
+          <div className="bg-slate-900 rounded-xl p-3.5 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center space-x-2.5">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                Assigned Code:
+              </span>
+              <span className="font-mono font-bold text-sm text-cyan-300 bg-cyan-950/80 px-2.5 py-1 rounded-lg border border-cyan-800/80 tracking-wider shadow-inner">
+                {liveOpportunityCode}
+              </span>
+            </div>
+            <div className="flex items-center space-x-1.5 text-[11px] font-mono bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-400">
+              <span className="text-purple-400 font-semibold" title={`Division: ${division} (${divCode})`}>{divCode}</span>
+              <span className="text-slate-600">-</span>
+              <span className="text-blue-400 font-semibold" title={`Business Unit: ${businessUnit} (${buCode})`}>{buCode}</span>
+              <span className="text-slate-600">-</span>
+              <span className="text-amber-400 font-semibold">OPP</span>
+              <span className="text-slate-600">-</span>
+              <span className="text-emerald-400 font-semibold">{new Date().getFullYear()}</span>
+              <span className="text-slate-600">-</span>
+              <span className="text-cyan-400 font-semibold">{liveOpportunityCode.split('-').pop()}</span>
+              <span className="text-[10px] text-slate-500 font-sans ml-1.5 hidden sm:inline">(DIV-BU-OPP-YYYY-NNN)</span>
+            </div>
+          </div>
+
           {/* Title & Client */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
@@ -354,8 +409,8 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
             </div>
           </div>
 
-          {/* Industry, Division & Business Unit */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+          {/* Industry, Division, Business Unit & Service Pillar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-slate-700 font-semibold">Industry Sector</label>
@@ -416,6 +471,26 @@ export const NewOpportunityModal: React.FC<NewOpportunityModalProps> = ({
                   {activeDepartments.map((dept) => (
                     <option key={dept.id} value={dept.value}>
                       {dept.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">Service Pillar</label>
+              <div className="relative">
+                <Network className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                <select
+                  id="select-opportunity-service-pillar"
+                  value={servicePillar}
+                  onChange={(e) => setServicePillar(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="">-- None / Select Service Pillar (Optional) --</option>
+                  {activeServicePillars.map((sp) => (
+                    <option key={sp.id} value={sp.value}>
+                      {sp.label}
                     </option>
                   ))}
                 </select>

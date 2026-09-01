@@ -3,7 +3,7 @@ import { Opportunity, WorkflowStage, StakeholderRole, ClientOrganization, Resour
 import { INITIAL_OPPORTUNITIES } from './data/mockOpportunities';
 import { INITIAL_CLIENTS } from './data/mockClients';
 import { INITIAL_RESOURCES } from './data/mockResources';
-import { INITIAL_FORM_SELECTORS } from './data/mockFormSelectors';
+import { INITIAL_FORM_SELECTORS, ensureValidFormSelectors } from './data/mockFormSelectors';
 import { STAGE_MAP, WORKFLOW_STAGES, ensureValid15Stages } from './data/stages';
 import { Navbar } from './components/Navbar';
 import { StakeholderDashboard } from './components/StakeholderDashboard';
@@ -61,18 +61,7 @@ export default function App() {
       const saved = localStorage.getItem(FORM_SELECTORS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          return {
-            industries: Array.isArray(parsed.industries) && parsed.industries.length > 0 ? parsed.industries : INITIAL_FORM_SELECTORS.industries,
-            departments: Array.isArray(parsed.departments) && parsed.departments.length > 0 ? parsed.departments : INITIAL_FORM_SELECTORS.departments,
-            divisions: Array.isArray(parsed.divisions) && parsed.divisions.length > 0 ? parsed.divisions : INITIAL_FORM_SELECTORS.divisions,
-            roles: Array.isArray(parsed.roles) && parsed.roles.length > 0 ? parsed.roles : INITIAL_FORM_SELECTORS.roles,
-            priorities: Array.isArray(parsed.priorities) && parsed.priorities.length > 0 ? parsed.priorities : INITIAL_FORM_SELECTORS.priorities,
-            opportunityStatuses: Array.isArray(parsed.opportunityStatuses) && parsed.opportunityStatuses.length > 0 ? parsed.opportunityStatuses : INITIAL_FORM_SELECTORS.opportunityStatuses,
-            clientProfiles: Array.isArray(parsed.clientProfiles) && parsed.clientProfiles.length > 0 ? parsed.clientProfiles : INITIAL_FORM_SELECTORS.clientProfiles,
-            contractTypes: Array.isArray(parsed.contractTypes) && parsed.contractTypes.length > 0 ? parsed.contractTypes : INITIAL_FORM_SELECTORS.contractTypes,
-          };
-        }
+        return ensureValidFormSelectors(parsed);
       }
     } catch (e) {
       console.error('Failed to load stored form selectors:', e);
@@ -173,7 +162,12 @@ export default function App() {
         unsubscribeSelectors = subscribeFormSelectors(
           (dbSelectors) => {
             if (dbSelectors && typeof dbSelectors === 'object') {
-              setFormSelectors(dbSelectors);
+              const validated = ensureValidFormSelectors(dbSelectors);
+              setFormSelectors(validated);
+              // If Firestore was missing servicePillars or other categories, backfill it to Firestore
+              if (!Array.isArray((dbSelectors as any).servicePillars) || (dbSelectors as any).servicePillars.length === 0) {
+                saveFormSelectorsToDb(validated).catch((e) => console.error('Error backfilling formSelectors to Firestore:', e));
+              }
             }
           },
           (err) => console.error('Firestore selectors error:', err)
@@ -544,6 +538,7 @@ export default function App() {
       if (category === 'industry' || category === 'industries') categoryKey = 'industries';
       else if (category === 'division' || category === 'divisions') categoryKey = 'divisions';
       else if (category === 'department' || category === 'departments' || category === 'businessUnit') categoryKey = 'departments';
+      else if (category === 'servicePillar' || category === 'servicePillars') categoryKey = 'servicePillars';
       else if (category === 'role' || category === 'roles') categoryKey = 'roles';
       else if (category === 'priority' || category === 'priorities') categoryKey = 'priorities';
       else if (category === 'opportunityStatus' || category === 'opportunityStatuses') categoryKey = 'opportunityStatuses';
@@ -679,6 +674,7 @@ export default function App() {
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
         onCreate={handleCreateOpportunity}
+        opportunities={opportunities}
         clients={clients}
         resources={resources}
         formSelectors={formSelectors}

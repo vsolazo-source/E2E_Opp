@@ -54,17 +54,17 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
   onUpdateOpportunity,
   onAdvanceStage,
 }) => {
-  if (!opportunity) return null;
-
   const [activeTab, setActiveTab] = useState<'ACTION' | 'OVERVIEW' | 'SOLUTION_VENDOR' | 'CONTRACTS_LEGAL' | 'PMO_BILLING' | 'AUDIT'>('ACTION');
-  const [selectedInspectStage, setSelectedInspectStage] = useState<WorkflowStage>(opportunity.currentStage);
+  const [selectedInspectStage, setSelectedInspectStage] = useState<WorkflowStage>(opportunity?.currentStage || 1);
 
   // Keep inspected stage in sync when the opportunity transitions to a new stage
   useEffect(() => {
     if (opportunity) {
       setSelectedInspectStage(opportunity.currentStage);
     }
-  }, [opportunity.id, opportunity.currentStage]);
+  }, [opportunity?.id, opportunity?.currentStage]);
+
+  if (!opportunity) return null;
 
   const stageDef = STAGE_MAP[opportunity.currentStage];
   const sla = getSlaStatus(opportunity, stageDefinitions);
@@ -93,6 +93,11 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
               <span className="text-xs text-slate-300 font-medium">
                 {BU_LABELS[opportunity.businessUnit] || opportunity.businessUnit}
               </span>
+              {opportunity.servicePillar && (
+                <span className="text-xs text-cyan-300 font-medium px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/60 truncate max-w-xs">
+                  {opportunity.servicePillar}
+                </span>
+              )}
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${
                 opportunity.priority === 'CRITICAL' ? 'bg-red-500/30 text-red-300' :
                 opportunity.priority === 'HIGH' ? 'bg-amber-500/30 text-amber-300' :
@@ -287,7 +292,7 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                       <span className="text-slate-500 block">Client Organization</span>
                       <span className="font-semibold text-slate-800">{opportunity.clientName}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <div>
                         <span className="text-slate-500 block">Division</span>
                         <span className="text-purple-700 font-medium">{opportunity.division || 'General Operations'}</span>
@@ -295,6 +300,12 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                       <div>
                         <span className="text-slate-500 block">Business Unit</span>
                         <span className="text-slate-800 font-medium">{BU_LABELS[opportunity.businessUnit] || opportunity.businessUnit}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Service Pillar</span>
+                        <span className={opportunity.servicePillar ? "text-cyan-700 font-medium" : "text-slate-400 italic font-normal"}>
+                          {opportunity.servicePillar || 'None Specified'}
+                        </span>
                       </div>
                     </div>
                     <div>

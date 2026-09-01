@@ -302,6 +302,7 @@ export interface Opportunity {
   buOwner?: string;
   division?: string;
   businessUnit: 'CLOUD_INFRA' | 'DIGITAL_APP' | 'ENTERPRISE_AI' | 'MANAGED_SERVICES' | 'CYBERSECURITY' | string;
+  servicePillar?: 'Workplace' | 'Infrastructure' | 'Network' | string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
   status?: string; // 'Active' | 'On Hold' | 'Budgetary' | 'Won' | 'Lost' | 'Cancelled'
   description: string;
@@ -330,14 +331,7 @@ export interface Opportunity {
   };
   contractsEndorsementData?: ContractsEndorsementData;
   contractsEndorsementNotes?: string;
-  clientNegotiation?: {
-    presentedDate?: string;
-    clientFeedback?: string;
-    agreedDiscountPercent?: number;
-    finalAgreedValue?: number;
-    clientConfirmedDate?: string;
-    status: 'IN_NEGOTIATION' | 'CLIENT_CONFIRMED' | 'REJECTED';
-  };
+  clientNegotiation?: ClientNegotiationData;
   contractDetails: ContractDetails;
   finalFinanceApproval?: {
     approved: boolean;
@@ -401,6 +395,7 @@ export type FormSelectorCategoryKey =
   | 'industry'
   | 'department'
   | 'division'
+  | 'servicePillar'
   | 'role'
   | 'priority'
   | 'opportunityStatus'
@@ -411,6 +406,7 @@ export interface FormSelectorsConfig {
   industries: FormOptionItem[];
   departments: FormOptionItem[]; // Business Units
   divisions: FormOptionItem[];   // Divisions
+  servicePillars: FormOptionItem[]; // Service Pillars (Workplace, Infrastructure, Network)
   roles: FormOptionItem[];
   priorities: FormOptionItem[];
   opportunityStatuses: FormOptionItem[];

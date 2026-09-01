@@ -177,29 +177,36 @@ export function buildFinanceAuditTrail(opp: Opportunity): FinanceAuditEntry[] {
     }
   }
 
-  // 6. Check if Stage 6 (Client Buyoff / Negotiation) snapshot exists
+  // 6. Check if Stage 7 (Client Buyoff / Negotiation) snapshot exists
   if (opp.clientNegotiation?.finalAgreedValue || opp.clientNegotiation?.status === 'CLIENT_CONFIRMED') {
-    const hasStage6 = entries.some(
+    const hasStage7 = entries.some(
       (e) => e.stage === 'CLIENT_BUYOFF_NEGOTIATION' || e.eventType === 'CLIENT_NEGOTIATION'
     );
-    if (!hasStage6) {
+    if (!hasStage7) {
+      const finalAmount = opp.clientNegotiation.finalAgreedValue || opp.dealValue;
+      const internalCost = opp.solutionProposal?.ibsiInternalCost || 0;
+      const margin = finalAmount > 0 ? ((finalAmount - internalCost) / finalAmount) * 100 : undefined;
+
       entries.push({
         id: `neg-${opp.id}`,
-        timestamp: opp.clientNegotiation.clientConfirmedDate || opp.clientNegotiation.presentedDate || opp.updatedAt,
+        timestamp: opp.clientNegotiation.clientConfirmedDate || opp.clientNegotiation.presentedDate || opp.clientNegotiation.acknowledgedStartDate || opp.updatedAt,
         stage: 'CLIENT_BUYOFF_NEGOTIATION',
         stageName: getStageName('CLIENT_BUYOFF_NEGOTIATION'),
         eventType: 'CLIENT_NEGOTIATION',
-        actorName: opp.salesLead || 'Sales Lead',
+        actorName: opp.clientNegotiation.negotiationLead || opp.salesLead || 'Sales Lead',
         actorRole: 'SALES',
         actionLabel: 'Client Negotiation & Agreed Value Confirmed',
-        amount: opp.clientNegotiation.finalAgreedValue || opp.dealValue,
+        amount: finalAmount,
         currency,
+        internalCost: internalCost > 0 ? internalCost : undefined,
+        internalCurrency: opp.solutionProposal?.ibsiInternalCurrency || currency,
+        marginPercent: margin,
         notes: opp.clientNegotiation.clientFeedback || (opp.clientNegotiation.agreedDiscountPercent ? `Agreed ${opp.clientNegotiation.agreedDiscountPercent}% commercial discount with client sponsor.` : 'Client accepted proposed deal structure.'),
       });
     }
   }
 
-  // 7. Check if Stage 8 (Final Finance Approval) snapshot exists
+  // 7. Check if Stage 9 (Final Finance Approval) snapshot exists
   if (opp.finalFinanceApproval?.approved || opp.finalFinanceApproval?.finalTcv) {
     const hasStage8 = entries.some(
       (e) => e.stage === 'FINAL_FINANCE_APPROVAL' || e.eventType === 'FINAL_FINANCE_APPROVAL'

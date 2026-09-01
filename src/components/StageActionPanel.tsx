@@ -37,7 +37,8 @@ import {
   Clock,
   Calculator,
   AlertTriangle,
-  FileSignature
+  FileSignature,
+  Handshake
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Opportunity, WorkflowStage, StakeholderRole, FormSelectorsConfig, ClientOrganization, ResourceMember } from '../types';
@@ -194,6 +195,29 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
     setReturnToStage4Error('');
   };
 
+  // Revert back to Stage 6 modal state (Stage 7 to Contracts Team Endorsement for Review)
+  const [showReturnToStage6Modal, setShowReturnToStage6Modal] = useState(false);
+  const [returnToStage6Reason, setReturnToStage6Reason] = useState('');
+  const [returnToStage6Error, setReturnToStage6Error] = useState('');
+
+  const handleConfirmReturnToStage6 = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedReason = returnToStage6Reason.trim();
+    if (!trimmedReason) {
+      setReturnToStage6Error('Please specify a required reason for returning this opportunity to Stage 6 (Contracts Team for Review).');
+      return;
+    }
+
+    onAdvanceStage(
+      'CONTRACTS_PROPOSAL_ENDORSEMENT',
+      'Returned to Contracts Team for Review',
+      trimmedReason
+    );
+    setShowReturnToStage6Modal(false);
+    setReturnToStage6Reason('');
+    setReturnToStage6Error('');
+  };
+
   const activeContractTypes = (formSelectors?.contractTypes || []).filter((c) => c.isActive !== false);
 
   const activeIndustries = useMemo(
@@ -206,6 +230,10 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
   );
   const activeDivisions = useMemo(
     () => (formSelectors?.divisions || []).filter((div) => div.isActive !== false),
+    [formSelectors]
+  );
+  const activeServicePillars = useMemo(
+    () => (formSelectors?.servicePillars || []).filter((sp) => sp.isActive !== false),
     [formSelectors]
   );
   const activePriorities = useMemo(
@@ -879,7 +907,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                       </select>
                     </div>
 
-                    {/* Business Unit & Division */}
+                    {/* Business Unit & Service Pillar */}
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 block">Business Unit (BU)</label>
                       <select
@@ -892,6 +920,30 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                         <option value="DATA_AI">Data, AI & Analytics</option>
                         <option value="APP_DEV">Application Modernization & Dev</option>
                         <option value="MANAGED_SERVICES">Managed Services & NOC</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 block">Service Pillar</label>
+                      <select
+                        value={opportunity.servicePillar || ''}
+                        onChange={(e) => onUpdateOpportunity({ ...opportunity, servicePillar: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-slate-900 font-medium focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      >
+                        <option value="">-- None / Blank (Optional) --</option>
+                        {opportunity.servicePillar && !activeServicePillars.some((sp) => sp.value === opportunity.servicePillar) && (
+                          <option value={opportunity.servicePillar}>{opportunity.servicePillar} (Current)</option>
+                        )}
+                        {(activeServicePillars.length > 0
+                          ? activeServicePillars
+                          : [
+                              { id: 'sp-1', label: 'Workplace', value: 'Workplace' },
+                              { id: 'sp-2', label: 'Infrastructure', value: 'Infrastructure' },
+                              { id: 'sp-3', label: 'Network', value: 'Network' },
+                            ]
+                        ).map((sp) => (
+                          <option key={sp.id} value={sp.value}>{sp.label}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -2066,6 +2118,93 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                   onClick={() => {
                     setShowReturnToStage4Modal(false);
                     setReturnToStage4Error('');
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs flex items-center cursor-pointer gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Confirm Return to Contracts Team
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* RETURN TO STAGE 6 MODAL (FROM STAGE 7 TO CONTRACTS TEAM FOR REVIEW) */}
+      {showReturnToStage6Modal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div className="p-4 bg-amber-500 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <RotateCcw className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Return to Contracts Team for Review</h3>
+                  <p className="text-[11px] text-amber-100">Send opportunity back to Stage 6 (Contracts Team Proposal Endorsement)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnToStage6Modal(false);
+                  setReturnToStage6Error('');
+                }}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReturnToStage6} className="p-4 space-y-3.5 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold text-slate-700 block">Opportunity Context:</span>
+                <div className="text-slate-900 font-semibold">{opportunity.title}</div>
+                <div className="text-slate-500 text-[11px]">
+                  Client: <strong className="text-slate-700">{opportunity.clientName}</strong> • Current Deal Value: <strong className="text-emerald-700">{formatCurrency(opportunity.dealValue, opportunity.currency)}</strong>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-800 block">
+                  Reason for Returning to Contracts Team for Review <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={returnToStage6Reason}
+                  onChange={(e) => {
+                    setReturnToStage6Reason(e.target.value);
+                    if (returnToStage6Error) setReturnToStage6Error('');
+                  }}
+                  placeholder="Please specify why this opportunity is being returned to the Contracts Team for review (e.g., Client requested legal clause modifications, liability adjustments needed, custom SOW deliverables re-alignment, or updated commercial endorsements required)..."
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none text-xs"
+                  autoFocus
+                />
+                {returnToStage6Error && (
+                  <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {returnToStage6Error}
+                  </p>
+                )}
+                <span className="text-[10px] text-slate-500 block">
+                  * Note: Providing a return reason is mandatory. This note will be recorded in the opportunity history and timeline.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReturnToStage6Modal(false);
+                    setReturnToStage6Error('');
                   }}
                   className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
@@ -4911,98 +5050,548 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
       })()}
 
       {/* STAGE 7: CLIENT BUYOFF & NEGOTIATION */}
-      {currentStage === 'CLIENT_BUYOFF_NEGOTIATION' && (
-        <div className="space-y-4 text-xs">
-          <div className="p-3.5 bg-white rounded-lg border border-slate-200 space-y-2">
-            <div className="font-bold text-slate-900 text-sm">Client Engagement & Negotiation Record:</div>
-            <p className="text-slate-600">
-              Present proposal to <span className="font-semibold text-slate-800">{opportunity.clientContactName}</span> at <span className="font-semibold text-slate-800">{opportunity.clientName}</span>.
-            </p>
-          </div>
+      {currentStage === 'CLIENT_BUYOFF_NEGOTIATION' && (() => {
+        const stage7TriggerDate = opportunity.clientNegotiation?.stage7TriggerDate || 
+          (opportunity.currentStage === 'CLIENT_BUYOFF_NEGOTIATION' 
+            ? (opportunity.stageEnteredAt || opportunity.updatedAt || opportunity.createdAt) 
+            : (opportunity.stageEnteredAt || opportunity.createdAt));
+        
+        const slaTriggerToAckDays = opportunity.clientNegotiation?.slaTriggerToAckDays || 2;
+        const stage7TargetSlaDays = opportunity.clientNegotiation?.stage7TargetSlaDays || STAGE_MAP.CLIENT_BUYOFF_NEGOTIATION?.targetSlaDays || 5;
+        
+        const nowMs = Date.now();
+        const triggerMs = stage7TriggerDate ? new Date(stage7TriggerDate).getTime() : nowMs;
+        const elapsedDaysFromTrigger = Math.max(0, Math.floor((nowMs - triggerMs) / (1000 * 60 * 60 * 24)));
+        
+        // Auto-default logic: if no manual input in acknowledged date after SLA days, default to Trigger Date + SLA
+        const rawAckDate = opportunity.clientNegotiation?.acknowledgedStartDate || '';
+        const isAutoDefaulted = !rawAckDate && elapsedDaysFromTrigger >= slaTriggerToAckDays;
+        const autoDefaultedAckDate = new Date(triggerMs + slaTriggerToAckDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const effectiveAckDate = rawAckDate || (isAutoDefaulted ? autoDefaultedAckDate : '');
+        
+        const isAckOverdue = !rawAckDate && elapsedDaysFromTrigger > slaTriggerToAckDays;
+        const ackMs = effectiveAckDate ? new Date(effectiveAckDate).getTime() : null;
+        const elapsedDaysFromAck = ackMs ? Math.max(0, Math.floor((nowMs - ackMs) / (1000 * 60 * 60 * 24))) : 0;
+        const isNegotiationOverdue = effectiveAckDate ? (elapsedDaysFromAck > stage7TargetSlaDays) : false;
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-medium mb-1">Agreed Discount % (If any)</label>
-              <input
-                type="number"
-                value={opportunity.clientNegotiation?.agreedDiscountPercent || 0}
-                onChange={(e) => {
-                  const discount = Number(e.target.value);
-                  const finalVal = Math.round(opportunity.dealValue * (1 - discount / 100));
-                  onUpdateOpportunity({
-                    ...opportunity,
-                    clientNegotiation: {
-                      ...opportunity.clientNegotiation,
-                      status: 'IN_NEGOTIATION',
-                      agreedDiscountPercent: discount,
-                      finalAgreedValue: finalVal,
-                    }
-                  });
-                }}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
-              />
+        const negotiationLead = opportunity.clientNegotiation?.negotiationLead || opportunity.salesLead || '';
+        const baselineProposalTcv = opportunity.solutionProposal?.tcv || opportunity.dealValue || 0;
+        const internalCost = opportunity.solutionProposal?.ibsiInternalCost || (opportunity.solutionProposal?.estimatedDeliveryCost || 0);
+        const discountPercent = opportunity.clientNegotiation?.agreedDiscountPercent ?? 0;
+        const finalAgreedVal = opportunity.clientNegotiation?.finalAgreedValue ?? (discountPercent > 0 ? Math.round(baselineProposalTcv * (1 - discountPercent / 100)) : opportunity.dealValue);
+        
+        const effectiveGrossProfit = finalAgreedVal - internalCost;
+        const effectiveMarginPercent = finalAgreedVal > 0 ? (effectiveGrossProfit / finalAgreedVal) * 100 : 0;
+        const varianceVsBaseline = finalAgreedVal - baselineProposalTcv;
+        const variancePercent = baselineProposalTcv > 0 ? (varianceVsBaseline / baselineProposalTcv) * 100 : 0;
+        const clientFeedback = opportunity.clientNegotiation?.clientFeedback || '';
+        const endorsementGuidance = opportunity.contractsEndorsementData?.commercialGuidanceNotes || opportunity.contractsEndorsementNotes;
+        const propLink = opportunity.solutionProposal?.clientProposalLink || opportunity.torLink;
+
+        const salesResources = resources.filter(r => 
+          r.department?.toLowerCase().includes('sales') || 
+          r.department?.toLowerCase().includes('commercial') || 
+          r.role?.toLowerCase().includes('sales') || 
+          r.role?.toLowerCase().includes('account') || 
+          r.role?.toLowerCase().includes('business development') || 
+          r.role?.toLowerCase().includes('director') ||
+          r.division?.toLowerCase().includes('sales')
+        );
+
+        const handleSetAckDateToday = () => {
+          const todayStr = new Date().toISOString().split('T')[0];
+          onUpdateOpportunity({
+            ...opportunity,
+            clientNegotiation: {
+              ...opportunity.clientNegotiation,
+              status: opportunity.clientNegotiation?.status || 'IN_NEGOTIATION',
+              stage7TriggerDate,
+              acknowledgedStartDate: todayStr,
+              slaTriggerToAckDays,
+              stage7TargetSlaDays,
+              negotiationLead,
+              agreedDiscountPercent: discountPercent,
+              finalAgreedValue: finalAgreedVal,
+              clientFeedback,
+            }
+          });
+        };
+
+        const handleConfirmClientBuyoff = () => {
+          const finalVal = finalAgreedVal;
+          const confirmDate = new Date().toISOString();
+          
+          // Generate Finance Audit Entry for Client Buyoff & Final Agreed Value
+          const auditEntry = {
+            id: `audit-stage7-${Date.now()}`,
+            timestamp: confirmDate,
+            stage: 'CLIENT_BUYOFF_NEGOTIATION' as WorkflowStage,
+            stageName: STAGE_MAP.CLIENT_BUYOFF_NEGOTIATION?.label || 'Client Buyoff & Negotiation',
+            eventType: 'CLIENT_NEGOTIATION' as const,
+            actorName: negotiationLead || opportunity.salesLead || 'Sales Executive',
+            actorRole: 'SALES' as StakeholderRole,
+            actionLabel: 'Final Agreed Value & Commercial Buyoff Confirmed',
+            amount: finalVal,
+            currency: opportunity.currency || 'USD',
+            internalCost: internalCost > 0 ? internalCost : undefined,
+            internalCurrency: opportunity.solutionProposal?.ibsiInternalCurrency || opportunity.currency || 'USD',
+            marginPercent: effectiveMarginPercent,
+            notes: clientFeedback || (discountPercent > 0 
+              ? `Client sponsor agreed to ${discountPercent}% discount. Final TCV confirmed at ${formatCurrency(finalVal, opportunity.currency)}.` 
+              : `Commercial terms and proposal accepted without discount at ${formatCurrency(finalVal, opportunity.currency)}.`),
+          };
+
+          const existingAudit = opportunity.financeAuditTrail || [];
+          const updatedAuditTrail = [...existingAudit, auditEntry];
+
+          const updatedOpportunity: Opportunity = {
+            ...opportunity,
+            dealValue: finalVal,
+            financeAuditTrail: updatedAuditTrail,
+            clientNegotiation: {
+              ...opportunity.clientNegotiation,
+              status: 'CLIENT_CONFIRMED',
+              stage7TriggerDate,
+              acknowledgedStartDate: effectiveAckDate,
+              slaTriggerToAckDays,
+              stage7TargetSlaDays,
+              negotiationLead,
+              agreedDiscountPercent: discountPercent,
+              finalAgreedValue: finalVal,
+              clientConfirmedDate: confirmDate,
+              clientFeedback,
+            }
+          };
+
+          onUpdateOpportunity(updatedOpportunity);
+          onAdvanceStage(
+            'CONTRACT_CONVERSION', 
+            'Client Buyoff Confirmed & Final Agreed Value Locked', 
+            comments || clientFeedback || `Client confirmed buyoff at ${formatCurrency(finalVal, opportunity.currency)} (${discountPercent > 0 ? `${discountPercent}% discount applied` : 'full proposal value'}). Routed to Contracts team for legal agreement conversion.`,
+            {
+              dealValue: finalVal,
+              financeAuditTrail: updatedAuditTrail,
+            }
+          );
+        };
+
+        return (
+          <div className="space-y-4 text-xs">
+            {/* Header Stage Overview & SLA Tracker */}
+            <div className="p-3.5 bg-gradient-to-r from-sky-50/90 to-blue-50/90 rounded-xl border border-sky-200/90 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                  <Handshake className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 text-sm">Stage 7: Client Buyoff & Commercial Negotiation</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                      Sales & Commercial Deal Team
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Engage client executive sponsors (<span className="font-semibold text-slate-800">{opportunity.clientContactName || 'Client Lead'}</span> at <span className="font-semibold text-slate-800">{opportunity.clientName}</span>) to present approved commercial terms and confirm final agreed value.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Pill */}
+              <div className="flex items-center gap-2 shrink-0">
+                {isNegotiationOverdue ? (
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1 shadow-2xs">
+                    <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                    Negotiation Overdue ({elapsedDaysFromAck}d / {stage7TargetSlaDays}d SLA)
+                  </span>
+                ) : effectiveAckDate ? (
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                    <CheckCircle className="w-3 h-3 text-emerald-600 shrink-0" />
+                    Acknowledged & In Client Negotiation ({elapsedDaysFromAck}d / {stage7TargetSlaDays}d SLA)
+                  </span>
+                ) : isAckOverdue ? (
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 shadow-2xs">
+                    <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                    Ack Auto-Defaulted (Trigger + {slaTriggerToAckDays}d SLA)
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 flex items-center gap-1 shadow-2xs">
+                    <Clock className="w-3 h-3 text-sky-600 shrink-0" />
+                    Awaiting Deal Team Acknowledgment ({elapsedDaysFromTrigger}d / {slaTriggerToAckDays}d Ack SLA)
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="block text-slate-700 font-medium mb-1">Final Agreed Value ($)</label>
-              <input
-                type="number"
-                value={opportunity.clientNegotiation?.finalAgreedValue || opportunity.dealValue}
-                onChange={(e) => onUpdateOpportunity({
-                  ...opportunity,
-                  clientNegotiation: {
-                    ...opportunity.clientNegotiation,
-                    status: 'IN_NEGOTIATION',
-                    finalAgreedValue: Number(e.target.value)
-                  }
-                })}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
-              />
+
+            {/* Stage 7 Governance Grid: Ingress Date, Acknowledged Start Date, Negotiation Lead */}
+            <div className="p-3.5 bg-slate-50/90 rounded-xl border border-slate-200/90 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-sky-600" />
+                  <span className="font-bold text-slate-900 text-xs">Stage 7 SLA Ingress & Deal Lead Assignment</span>
+                </div>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  SLA Reference Clock: <span className="font-semibold text-slate-700">{effectiveAckDate ? 'Acknowledged Start Date' : 'Stage Trigger Date'}</span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* 1. Stage 7 Trigger Date (Non-Editable) */}
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                      Stage 7 Trigger Date
+                      <span className="text-slate-400 font-normal">(Non-editable)</span>
+                    </label>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-100 text-slate-600">
+                      Workflow Ingress
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 p-1.5 bg-slate-50/80 rounded border border-slate-200 text-slate-800 font-mono text-xs font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>{stage7TriggerDate ? stage7TriggerDate.split('T')[0] : 'Pending Ingress'}</span>
+                    {stage7TriggerDate && (
+                      <span className="text-[10px] text-slate-500 font-sans font-normal ml-auto">
+                        ({formatDate(stage7TriggerDate)})
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-1 block">
+                    Automatic timestamp recorded upon entering Client Buyoff stage.
+                  </span>
+                </div>
+
+                {/* 2. Acknowledged Start Date */}
+                <div className="p-2.5 bg-white rounded-lg border border-sky-200 shadow-2xs flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-sky-900 uppercase tracking-wider flex items-center gap-1">
+                      Acknowledged Start Date
+                      <span className="text-sky-600 font-semibold">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSetAckDateToday}
+                      className="text-[10px] text-sky-600 font-bold hover:underline cursor-pointer flex items-center gap-0.5"
+                    >
+                      <Check className="w-3 h-3" />
+                      Set Today
+                    </button>
+                  </div>
+                  <input
+                    type="date"
+                    value={effectiveAckDate ? effectiveAckDate.split('T')[0] : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        clientNegotiation: {
+                          ...opportunity.clientNegotiation,
+                          status: opportunity.clientNegotiation?.status || 'IN_NEGOTIATION',
+                          stage7TriggerDate,
+                          acknowledgedStartDate: val,
+                          slaTriggerToAckDays,
+                          stage7TargetSlaDays,
+                          negotiationLead,
+                          agreedDiscountPercent: discountPercent,
+                          finalAgreedValue: finalAgreedVal,
+                          clientFeedback,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-sky-300 rounded px-2.5 py-1 text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                  <div className="flex items-center justify-between text-[9px] text-slate-500 mt-1">
+                    <span>
+                      {isAutoDefaulted ? (
+                        <strong className="text-amber-600">Auto-defaulted (Trigger + {slaTriggerToAckDays}d SLA)</strong>
+                      ) : rawAckDate ? (
+                        <span className="text-emerald-700 font-semibold">Manually Acknowledged</span>
+                      ) : (
+                        <span>Ack SLA window: <strong>{slaTriggerToAckDays} days</strong></span>
+                      )}
+                    </span>
+                    <span className="text-slate-400">Target SLA: <strong>{stage7TargetSlaDays}d</strong></span>
+                  </div>
+                </div>
+
+                {/* 3. Negotiation Lead / Account Executive */}
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
+                    Designated Negotiation Lead
+                  </label>
+                  <select
+                    value={negotiationLead}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        salesLead: val || opportunity.salesLead,
+                        clientNegotiation: {
+                          ...opportunity.clientNegotiation,
+                          status: opportunity.clientNegotiation?.status || 'IN_NEGOTIATION',
+                          stage7TriggerDate,
+                          acknowledgedStartDate: effectiveAckDate,
+                          slaTriggerToAckDays,
+                          stage7TargetSlaDays,
+                          negotiationLead: val,
+                          agreedDiscountPercent: discountPercent,
+                          finalAgreedValue: finalAgreedVal,
+                          clientFeedback,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-900 font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  >
+                    <option value="">Select Sales / Commercial Lead...</option>
+                    {salesResources.map(r => (
+                      <option key={r.id} value={r.name}>
+                        {r.name} ({r.role})
+                      </option>
+                    ))}
+                    {opportunity.salesLead && !salesResources.some(r => r.name === opportunity.salesLead) && (
+                      <option value={opportunity.salesLead}>{opportunity.salesLead} (Assigned Sales)</option>
+                    )}
+                  </select>
+                  <span className="text-[9px] text-slate-400 mt-1 block">
+                    Account Executive leading client presentation & closing.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Commercial Terms, Discount & Final Agreed Value Audit Card */}
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Coins className="w-4 h-4 text-emerald-600" />
+                  Commercial Negotiation & Value Audit Alignment
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Currency: <strong className="text-slate-700">{opportunity.currency || 'USD'}</strong>
+                </span>
+              </div>
+
+              {/* Endorsement Guidance Banner if available */}
+              {endorsementGuidance && (
+                <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg flex items-start gap-2 text-xs text-amber-950">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-[10px] uppercase text-amber-900">Contracts Endorsement Guidance for Sales:</span>
+                    <p className="text-[11px] italic mt-0.5">{endorsementGuidance}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                {/* 1. Baseline Approved Proposal TCV */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Baseline Proposal TCV
+                  </span>
+                  <div className="text-sm font-bold text-slate-900">
+                    {formatCurrency(baselineProposalTcv, opportunity.currency)}
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Stage 6 Endorsed Value
+                  </span>
+                </div>
+
+                {/* 2. Agreed Discount % */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                    Agreed Discount %
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={discountPercent}
+                      onChange={(e) => {
+                        const discount = Number(e.target.value);
+                        const computedFinalVal = Math.max(0, Math.round(baselineProposalTcv * (1 - (discount || 0) / 100)));
+                        onUpdateOpportunity({
+                          ...opportunity,
+                          clientNegotiation: {
+                            ...opportunity.clientNegotiation,
+                            status: 'IN_NEGOTIATION',
+                            stage7TriggerDate,
+                            acknowledgedStartDate: effectiveAckDate,
+                            slaTriggerToAckDays,
+                            stage7TargetSlaDays,
+                            negotiationLead,
+                            agreedDiscountPercent: discount,
+                            finalAgreedValue: computedFinalVal,
+                            clientFeedback,
+                          }
+                        });
+                      }}
+                      placeholder="0"
+                      className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-bold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                    />
+                    <span className="absolute right-2.5 top-1.5 text-xs text-slate-400 font-bold">%</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    {discountPercent > 0 ? `${discountPercent}% concession applied` : 'No discount granted'}
+                  </span>
+                </div>
+
+                {/* 3. Final Agreed Value ($) */}
+                <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 space-y-1">
+                  <label className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
+                    Final Agreed Value (TCV) <span className="text-emerald-700 font-semibold">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={finalAgreedVal}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const derivedDiscount = baselineProposalTcv > 0 ? Math.max(0, Math.round(((baselineProposalTcv - val) / baselineProposalTcv) * 100 * 10) / 10) : 0;
+                      onUpdateOpportunity({
+                        ...opportunity,
+                        clientNegotiation: {
+                          ...opportunity.clientNegotiation,
+                          status: 'IN_NEGOTIATION',
+                          stage7TriggerDate,
+                          acknowledgedStartDate: effectiveAckDate,
+                          slaTriggerToAckDays,
+                          stage7TargetSlaDays,
+                          negotiationLead,
+                          agreedDiscountPercent: derivedDiscount,
+                          finalAgreedValue: val,
+                          clientFeedback,
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-emerald-300 rounded-lg px-2.5 py-1 text-xs text-slate-900 font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-semibold text-emerald-800">{formatCurrency(finalAgreedVal, opportunity.currency)}</span>
+                    {varianceVsBaseline !== 0 && (
+                      <span className={`font-bold ${varianceVsBaseline < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {varianceVsBaseline < 0 ? `-${formatCurrency(Math.abs(varianceVsBaseline), opportunity.currency)}` : `+${formatCurrency(varianceVsBaseline, opportunity.currency)}`} ({variancePercent.toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Projected Margin % */}
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Negotiated Margin
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-sm font-bold ${effectiveMarginPercent >= 20 ? 'text-emerald-700' : effectiveMarginPercent >= 10 ? 'text-amber-700' : 'text-rose-700'}`}>
+                      {effectiveMarginPercent.toFixed(1)}%
+                    </span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-200 text-slate-700">
+                      Profit: {formatCurrency(effectiveGrossProfit, opportunity.currency)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block">
+                    Internal Cost: {formatCurrency(internalCost, opportunity.currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Proposal Document Link */}
+              {propLink && (
+                <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span className="text-slate-600 truncate font-medium">
+                      Client-Facing Proposal Reference: <span className="text-slate-900 font-semibold">{propLink}</span>
+                    </span>
+                  </div>
+                  {propLink.startsWith('http') && (
+                    <a
+                      href={propLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 font-bold hover:underline shrink-0 inline-flex items-center gap-1 ml-2"
+                    >
+                      Open Document
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Client Feedback & Buyoff Confirmation Notes */}
+              <div>
+                <label className="block text-slate-700 font-semibold text-xs mb-1">
+                  Client Feedback & Buyoff Confirmation Notes <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={clientFeedback}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onUpdateOpportunity({
+                      ...opportunity,
+                      clientNegotiation: {
+                        ...opportunity.clientNegotiation,
+                        status: 'IN_NEGOTIATION',
+                        stage7TriggerDate,
+                        acknowledgedStartDate: effectiveAckDate,
+                        slaTriggerToAckDays,
+                        stage7TargetSlaDays,
+                        negotiationLead,
+                        agreedDiscountPercent: discountPercent,
+                        finalAgreedValue: finalAgreedVal,
+                        clientFeedback: val,
+                      }
+                    });
+                  }}
+                  placeholder="Record client sponsor remarks, feedback on proposal scope, discount negotiations, agreed milestones, and verbal or email buyoff confirmation..."
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  * Note: This confirmation is permanently recorded in the opportunity timeline and Finance & Commercial Value Audit Trail.
+                </span>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-200">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Button 1: Revert back to Stage 3 */}
+                <button
+                  type="button"
+                  onClick={() => setShowReturnToStage3Modal(true)}
+                  className="inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 shadow-2xs transition-all cursor-pointer gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                  Return to Sales Review
+                </button>
+
+                {/* Button 2: Revert back to Stage 6 */}
+                <button
+                  type="button"
+                  onClick={() => setShowReturnToStage6Modal(true)}
+                  className="inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 shadow-2xs transition-all cursor-pointer gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+                  Return to Contracts Team for Review
+                </button>
+              </div>
+
+              {/* Button 3: Confirm Client Buyoff & Route to Contracts */}
+              <button
+                type="button"
+                onClick={handleConfirmClientBuyoff}
+                className="inline-flex items-center justify-center px-4 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white hover:bg-sky-700 shadow-xs transition-all cursor-pointer gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Confirm Client Buyoff & Route to Contracts
+                <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+              </button>
             </div>
           </div>
-
-          <div>
-            <label className="block text-slate-700 font-medium mb-1">Client Feedback & Buyoff Confirmation Notes</label>
-            <textarea
-              rows={2}
-              value={opportunity.clientNegotiation?.clientFeedback || ''}
-              onChange={(e) => onUpdateOpportunity({
-                ...opportunity,
-                clientNegotiation: {
-                  ...opportunity.clientNegotiation,
-                  status: 'IN_NEGOTIATION',
-                  clientFeedback: e.target.value,
-                }
-              })}
-              placeholder="Record client sponsor confirmation..."
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
-            />
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-2">
-            <button
-              onClick={() => {
-                const finalVal = opportunity.clientNegotiation?.finalAgreedValue || opportunity.dealValue;
-                const updated = {
-                  ...opportunity,
-                  dealValue: finalVal,
-                  clientNegotiation: {
-                    ...opportunity.clientNegotiation,
-                    status: 'CLIENT_CONFIRMED' as const,
-                    clientConfirmedDate: new Date().toISOString(),
-                    finalAgreedValue: finalVal,
-                  }
-                };
-                onUpdateOpportunity(updated);
-                onAdvanceStage('CONTRACT_CONVERSION', 'Client Buyoff Confirmed', comments || 'Client confirmed acceptance of commercial terms.');
-              }}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg bg-sky-600 text-white hover:bg-sky-700 shadow-xs transition-all"
-            >
-              Confirm Client Buyoff & Route to Contracts
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* STAGE 8: CONTRACT & AGREEMENT CONVERSION */}
       {currentStage === 'CONTRACT_CONVERSION' && (
@@ -5044,7 +5633,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
               <label className="block text-slate-700 font-medium mb-1">Contract Code / Reference #</label>
               <input
                 type="text"
-                value={opportunity.contractDetails?.contractNumber || `CTR-${opportunity.trackingCode.replace('OPP-', '')}`}
+                value={opportunity.contractDetails?.contractNumber || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-CTR-') : `CTR-${opportunity.trackingCode.replace(/^OPP-/, '')}`)}
                 onChange={(e) => onUpdateOpportunity({
                   ...opportunity,
                   contractDetails: { ...opportunity.contractDetails, contractNumber: e.target.value }
@@ -5264,8 +5853,8 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                   // Initialize parallel finance & pmo structures
                   parallelFinance: {
                     ...opportunity.parallelFinance,
-                    budgetCode: opportunity.parallelFinance?.budgetCode || `BC-2026-${opportunity.trackingCode.replace('OPP-', '')}`,
-                    contractCode: opportunity.parallelFinance?.contractCode || `CTR-${opportunity.trackingCode.replace('OPP-', '')}`,
+                    budgetCode: opportunity.parallelFinance?.budgetCode || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-BC-') : `BC-${opportunity.trackingCode.replace(/^OPP-/, '')}`),
+                    contractCode: opportunity.parallelFinance?.contractCode || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-CTR-') : `CTR-${opportunity.trackingCode.replace(/^OPP-/, '')}`),
                     tcv: opportunity.dealValue,
                     contractStartDate: new Date().toISOString().split('T')[0],
                     contractEndDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -5430,7 +6019,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                   },
                   cwcRecord: {
                     ...opportunity.cwcRecord,
-                    cwcNumber: `CWC-${new Date().getFullYear()}-${opportunity.trackingCode.replace('OPP-', '')}`,
+                    cwcNumber: opportunity.cwcRecord?.cwcNumber || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-CWC-') : `CWC-${new Date().getFullYear()}-${opportunity.trackingCode.replace(/^OPP-/, '')}`),
                     issuedDate: new Date().toISOString().split('T')[0],
                     pmoLeadSigner: opportunity.parallelPmo?.projectManager || 'Samantha Reynolds, PMP',
                     clientApproverName: opportunity.clientContactName,
@@ -5465,7 +6054,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                 <label className="block text-slate-700 font-medium mb-1">CWC Reference #</label>
                 <input
                   type="text"
-                  value={opportunity.cwcRecord?.cwcNumber || `CWC-2026-${opportunity.trackingCode.replace('OPP-', '')}`}
+                  value={opportunity.cwcRecord?.cwcNumber || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-CWC-') : `CWC-2026-${opportunity.trackingCode.replace(/^OPP-/, '')}`)}
                   onChange={(e) => onUpdateOpportunity({
                     ...opportunity,
                     cwcRecord: { ...opportunity.cwcRecord, cwcNumber: e.target.value }
@@ -5513,7 +6102,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
                   },
                   billingRecord: {
                     ...opportunity.billingRecord,
-                    invoiceNumber: `INV-2026-${opportunity.trackingCode.replace('OPP-', '')}`,
+                    invoiceNumber: opportunity.billingRecord?.invoiceNumber || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-INV-') : `INV-2026-${opportunity.trackingCode.replace(/^OPP-/, '')}`),
                     invoiceAmount: opportunity.dealValue,
                     totalAmount: opportunity.dealValue,
                     invoiceDate: new Date().toISOString().split('T')[0],
