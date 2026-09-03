@@ -145,6 +145,11 @@ export interface ClientNegotiationData {
 }
 
 export interface ContractDetails {
+  stage8TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage8TargetSlaDays?: number;
+  contractsSpecialist?: string;
   contractType?: string;
   contractNumber?: string;
   governingLaw?: string;
@@ -158,12 +163,46 @@ export interface ContractDetails {
   }[];
   convertedAt?: string;
   contractsSpecialistNotes?: string;
+  returnReason?: string;
+  // Converted Proposal to Contract uploads & pricing
+  clientContractLink?: string;
+  clientContractFileName?: string;
+  clientContractPricingCalculatorLink?: string;
+  clientContractPricingCalculatorFileName?: string;
+  clientContractPriceCurrency?: string;
+  clientContractPriceAmount?: number;
+  clientProposalPriceUpdated?: boolean;
+  uploadedAt?: string;
+}
+
+export interface FinalFinanceApprovalData {
+  approved: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  finalTcv?: number;
+  finalCurrency?: string;
+  comments?: string;
+  stage9TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage9TargetSlaDays?: number;
+  financeProcessor?: string;
+  returnReason?: string;
+  enableContractUpdates?: boolean;
+}
+
+export interface DocuSignOnHoldEntry {
+  id: string;
+  pausedAt: string;
+  resumedAt?: string;
+  reason: string;
+  pausedBy?: string;
 }
 
 export interface DocuSignDetails {
   envelopeId?: string;
   routingMode: 'DOCUSIGN' | 'CLIENT_COORDINATION';
-  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'CLIENT_SIGNED' | 'COUNTERSIGNED' | 'COMPLETED';
+  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'CLIENT_SIGNED' | 'COUNTERSIGNED' | 'COMPLETED' | 'ON_HOLD';
   sentDate?: string;
   clientSignerName?: string;
   clientSignerEmail?: string;
@@ -171,6 +210,41 @@ export interface DocuSignDetails {
   internalSignerName?: string;
   internalSignedDate?: string;
   docusignCertificateRef?: string;
+
+  // Stage 10 Governance & SLA Tracking
+  stage10TriggerDate?: string;
+  stage9TriggerDate?: string; // Support trigger date reference
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage10TargetSlaDays?: number;
+  contractsSpecialist?: string;
+  salesAssigned?: string;
+
+  // Scenario 1: Contracts Team Routing
+  routingBy?: 'CONTRACTS' | 'CLIENT';
+  contractsRoutingChannel?: 'DOCUSIGN' | 'EMAIL';
+  emailDispatchDate?: string;
+  emailRecipient?: string;
+  emailSubject?: string;
+  emailTrackingRef?: string;
+  contractDocumentLink?: string;
+
+  // On Hold & Pause SLA Tracking
+  isOnHold?: boolean;
+  onHoldReason?: string;
+  onHoldDate?: string;
+  onHoldHistory?: DocuSignOnHoldEntry[];
+  pausedDaysTotal?: number;
+
+  // Scenario 2: Client Routed (Sales Coordinated)
+  clientDispatchDate?: string;
+  clientExecutionTargetDate?: string;
+  clientReturnedDate?: string;
+  signedContractPoLink?: string;
+  signedContractPoFileName?: string;
+  clientPoNumber?: string;
+  salesRoutingNotes?: string;
+  salesActionTaken?: boolean;
 }
 
 export interface WinNotification {
@@ -180,6 +254,13 @@ export interface WinNotification {
   emailSubject?: string;
   emailBody?: string;
   recipients?: string[];
+
+  // Stage 11 Governance & SLA Tracking
+  stage11TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage11TargetSlaDays?: number;
+  contractsSpecialist?: string;
 }
 
 export interface ParallelFinanceData {
@@ -333,13 +414,7 @@ export interface Opportunity {
   contractsEndorsementNotes?: string;
   clientNegotiation?: ClientNegotiationData;
   contractDetails: ContractDetails;
-  finalFinanceApproval?: {
-    approved: boolean;
-    approvedBy?: string;
-    approvedAt?: string;
-    finalTcv?: number;
-    comments?: string;
-  };
+  finalFinanceApproval?: FinalFinanceApprovalData;
   docusignDetails: DocuSignDetails;
   winNotification: WinNotification;
   parallelFinance: ParallelFinanceData;

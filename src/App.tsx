@@ -132,6 +132,11 @@ export default function App() {
           (dbOpps) => {
             if (dbOpps && dbOpps.length > 0) {
               setOpportunities(dbOpps);
+              setSelectedOpportunity((prev) => {
+                if (!prev) return null;
+                const match = dbOpps.find((o) => o.id === prev.id);
+                return match || prev;
+              });
             }
             setDbStatus('CONNECTED');
           },
@@ -282,9 +287,7 @@ export default function App() {
     setOpportunities((prev) =>
       prev.map((opp) => (opp.id === updated.id ? updatedWithTime : opp))
     );
-    if (selectedOpportunity?.id === updated.id) {
-      setSelectedOpportunity(updatedWithTime);
-    }
+    setSelectedOpportunity((prev) => (prev?.id === updated.id ? updatedWithTime : prev));
 
     try {
       await saveOpportunityToDb(updatedWithTime);
@@ -304,7 +307,18 @@ export default function App() {
     const actorName = currentRole === 'ALL' ? 'Executive Stakeholder' : `${currentRole} Lead`;
     const isReturn = /return|revert|rejected|send back/i.test(actionName) || /returned to/i.test(comments || '');
 
-    const createHistoryEntry = (oppDealValue: number, oppCurrency: string): AuditLogEntry => ({
+    const currentOpp =
+      opportunities.find((opp) => opp.id === oppId) ||
+      (selectedOpportunity?.id === oppId ? selectedOpportunity : null);
+
+    if (!currentOpp) {
+      console.warn(`Opportunity ${oppId} not found to advance stage`);
+      return;
+    }
+
+    const baseMerged = extraUpdates ? { ...currentOpp, ...extraUpdates } : currentOpp;
+
+    const newHistoryEntry: AuditLogEntry = {
       id: `h-${Date.now()}`,
       timestamp: now,
       stage: nextStage,
@@ -314,50 +328,28 @@ export default function App() {
       comments: comments || undefined,
       isApproval: !isReturn,
       isReturn,
-      dealValue: oppDealValue,
-      currency: oppCurrency,
-    });
+      dealValue: baseMerged.dealValue,
+      currency: baseMerged.currency,
+    };
 
-    let updatedRecord: Opportunity | null = null;
+    const updatedRecord: Opportunity = {
+      ...baseMerged,
+      currentStage: nextStage,
+      stageEnteredAt: now,
+      updatedAt: now,
+      history: [...(baseMerged.history || []), newHistoryEntry],
+    };
 
     setOpportunities((prev) =>
-      prev.map((opp) => {
-        if (opp.id !== oppId) return opp;
-
-        const baseMerged = extraUpdates ? { ...opp, ...extraUpdates } : opp;
-        const newHistoryEntry = createHistoryEntry(baseMerged.dealValue, baseMerged.currency);
-
-        const updated = {
-          ...baseMerged,
-          currentStage: nextStage,
-          stageEnteredAt: now,
-          updatedAt: now,
-          history: [...(baseMerged.history || []), newHistoryEntry],
-        };
-        updatedRecord = updated;
-        return updated;
-      })
+      prev.map((opp) => (opp.id === oppId ? updatedRecord : opp))
     );
 
-    setSelectedOpportunity((prev) => {
-      if (!prev || prev.id !== oppId) return prev;
-      const baseMerged = extraUpdates ? { ...prev, ...extraUpdates } : prev;
-      const newHistoryEntry = createHistoryEntry(baseMerged.dealValue, baseMerged.currency);
-      return {
-        ...baseMerged,
-        currentStage: nextStage,
-        stageEnteredAt: now,
-        updatedAt: now,
-        history: [...(baseMerged.history || []), newHistoryEntry],
-      };
-    });
+    setSelectedOpportunity((prev) => (prev?.id === oppId ? updatedRecord : prev));
 
-    if (updatedRecord) {
-      try {
-        await saveOpportunityToDb(updatedRecord);
-      } catch (err) {
-        console.error('Failed to persist stage progression to Firestore:', err);
-      }
+    try {
+      await saveOpportunityToDb(updatedRecord);
+    } catch (err) {
+      console.error('Failed to persist stage progression to Firestore:', err);
     }
   };
 

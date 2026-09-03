@@ -20,7 +20,8 @@ import {
   AlertTriangle,
   Link2,
   ShieldCheck,
-  Calculator
+  Calculator,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Opportunity, WorkflowStage, StakeholderRole, FormSelectorsConfig, ClientOrganization, ResourceMember, StageDefinition } from '../types';
 import { STAGE_MAP, BU_LABELS } from '../data/stages';
@@ -254,6 +255,9 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                 onAddResource={onAddResource}
                 onUpdateOpportunity={onUpdateOpportunity}
                 onAdvanceStage={handleAdvance}
+                onRejectStage={(prevStage, reason) => {
+                  handleAdvance(prevStage, `Returned to ${STAGE_MAP[prevStage]?.name || prevStage}`, reason);
+                }}
               />
             </div>
           )}
@@ -770,30 +774,229 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
-                  <h4 className="font-bold text-slate-900 text-sm">Contract Conversion Record</h4>
-                  <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-900 text-sm">Contract Conversion Record</h4>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800">
+                      Stage 8 & 12
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs">
                     <div>
-                      <span className="text-slate-500 block">Contract Reference</span>
-                      <span className="font-bold text-slate-800">{opportunity.contractDetails?.contractNumber || 'Not Yet Converted'}</span>
+                      <span className="text-slate-500 block text-[10px]">Contract Code / Reference #</span>
+                      <span className="font-bold text-purple-900 font-mono">
+                        {opportunity.parallelFinance?.contractCode || opportunity.contractDetails?.contractNumber || 'Assigned in Stage 12 by Finance'}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Governing Law</span>
-                      <span className="text-slate-800">{opportunity.contractDetails?.governingLaw || 'Standard'}</span>
+                      <span className="text-slate-500 block text-[10px]">Contract Type</span>
+                      <span className="font-semibold text-slate-800">
+                        {opportunity.contractDetails?.contractType || 'Service Order'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Stage 8 Trigger Date</span>
+                        <span className="font-medium text-slate-700">
+                          {opportunity.contractDetails?.stage8TriggerDate ? formatDate(opportunity.contractDetails.stage8TriggerDate) : 'Pending Ingress'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Acknowledged Start Date</span>
+                        <span className="font-medium text-slate-700">
+                          {opportunity.contractDetails?.acknowledgedStartDate ? formatDate(opportunity.contractDetails.acknowledgedStartDate) : 'Pending SLA Ack'}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Governing Law Jurisdiction</span>
+                      <span className="text-slate-700">{opportunity.contractDetails?.governingLaw || 'Republic of the Philippines / Commercial Arbitration'}</span>
+                    </div>
+
+                    {/* Converted Proposal to Contract: Price & Document Links */}
+                    <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 text-[10px]">Client Contract Price (TCV)</span>
+                        <span className="font-extrabold text-emerald-700 text-xs">
+                          {formatCurrency(
+                            opportunity.contractDetails?.clientContractPriceAmount || opportunity.dealValue,
+                            opportunity.contractDetails?.clientContractPriceCurrency || opportunity.currency
+                          )}
+                        </span>
+                      </div>
+
+                      {opportunity.contractDetails?.clientContractLink && (
+                        <div className="flex items-center justify-between gap-1 text-[11px]">
+                          <span className="text-slate-500 flex items-center gap-1 shrink-0 text-[10px]">
+                            <FileText className="w-3 h-3 text-teal-600" /> Contract File:
+                          </span>
+                          {opportunity.contractDetails.clientContractLink.startsWith('http://') || opportunity.contractDetails.clientContractLink.startsWith('https://') ? (
+                            <a
+                              href={opportunity.contractDetails.clientContractLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-teal-700 font-bold hover:underline inline-flex items-center gap-0.5 truncate max-w-[150px]"
+                            >
+                              <span>{opportunity.contractDetails.clientContractFileName || 'Open Contract'}</span>
+                              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="font-mono text-slate-800 font-semibold truncate max-w-[150px]">
+                              {opportunity.contractDetails.clientContractFileName || opportunity.contractDetails.clientContractLink}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {opportunity.contractDetails?.clientContractPricingCalculatorLink && (
+                        <div className="flex items-center justify-between gap-1 text-[11px]">
+                          <span className="text-slate-500 flex items-center gap-1 shrink-0 text-[10px]">
+                            <FileSpreadsheet className="w-3 h-3 text-emerald-600" /> Calculator:
+                          </span>
+                          {opportunity.contractDetails.clientContractPricingCalculatorLink.startsWith('http://') || opportunity.contractDetails.clientContractPricingCalculatorLink.startsWith('https://') ? (
+                            <a
+                              href={opportunity.contractDetails.clientContractPricingCalculatorLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-700 font-bold hover:underline inline-flex items-center gap-0.5 truncate max-w-[150px]"
+                            >
+                              <span>{opportunity.contractDetails.clientContractPricingCalculatorFileName || 'Open Calculator'}</span>
+                              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="font-mono text-slate-800 font-semibold truncate max-w-[150px]">
+                              {opportunity.contractDetails.clientContractPricingCalculatorFileName || opportunity.contractDetails.clientContractPricingCalculatorLink}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {opportunity.contractDetails?.contractsSpecialistNotes && (
+                        <div className="pt-1.5 border-t border-slate-200/60 text-[11px]">
+                          <span className="text-slate-500 block text-[10px]">Contracts Specialist Conversion Notes</span>
+                          <span className="text-slate-700 italic text-[11px] block">{opportunity.contractDetails.contractsSpecialistNotes}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
-                  <h4 className="font-bold text-slate-900 text-sm">DocuSign Execution Status</h4>
-                  <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-900 text-sm">Final Finance Approval</h4>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      opportunity.finalFinanceApproval?.approved ? 'bg-violet-100 text-violet-800' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {opportunity.finalFinanceApproval?.approved ? 'Signed Off ✓' : 'Commercial Review'}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs">
                     <div>
-                      <span className="text-slate-500 block">Envelope Status</span>
-                      <span className="font-bold text-emerald-700">{opportunity.docusignDetails?.status || 'Draft'}</span>
+                      <span className="text-slate-500 block text-[11px]">Finance Processor</span>
+                      <span className="font-semibold text-slate-800">
+                        {opportunity.finalFinanceApproval?.financeProcessor || opportunity.financeProcessor || 'Unassigned'}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-slate-500 block">Envelope ID</span>
-                      <span className="font-mono text-slate-700">{opportunity.docusignDetails?.envelopeId || 'DOCU-PENDING'}</span>
+                    {opportunity.finalFinanceApproval?.stage9TriggerDate && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Trigger Date:</span>
+                        <span className="font-mono text-slate-700">{formatDate(opportunity.finalFinanceApproval.stage9TriggerDate)}</span>
+                      </div>
+                    )}
+                    {opportunity.finalFinanceApproval?.acknowledgedStartDate && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Acknowledged Date:</span>
+                        <span className="font-mono text-slate-700">{formatDate(opportunity.finalFinanceApproval.acknowledgedStartDate)}</span>
+                      </div>
+                    )}
+                    {opportunity.finalFinanceApproval?.finalTcv && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Final Binding TCV:</span>
+                        <span className="font-bold text-emerald-700">
+                          {formatCurrency(opportunity.finalFinanceApproval.finalTcv, opportunity.finalFinanceApproval.finalCurrency || opportunity.currency)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-slate-900 text-sm">DocuSign & Client Routing</h4>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      opportunity.docusignDetails?.isOnHold || opportunity.docusignDetails?.status === 'ON_HOLD'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : opportunity.docusignDetails?.status === 'COMPLETED'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {opportunity.docusignDetails?.isOnHold || opportunity.docusignDetails?.status === 'ON_HOLD'
+                        ? 'On Hold (SLA Paused)'
+                        : opportunity.docusignDetails?.status || 'Draft'}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-slate-500">Routing Scenario:</span>
+                      <span className="font-semibold text-slate-800">
+                        {opportunity.docusignDetails?.routingBy === 'CLIENT'
+                          ? 'Routed by Client (Sales-led)'
+                          : `Contracts Team (${opportunity.docusignDetails?.contractsRoutingChannel || 'DocuSign'})`}
+                      </span>
                     </div>
+                    {opportunity.docusignDetails?.contractsSpecialist && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Contracts Specialist:</span>
+                        <span className="font-medium text-teal-700">{opportunity.docusignDetails.contractsSpecialist}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.salesAssigned && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Sales Assigned:</span>
+                        <span className="font-medium text-blue-700">{opportunity.docusignDetails.salesAssigned}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.stage10TriggerDate && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Trigger Date:</span>
+                        <span className="font-mono text-slate-700">{formatDate(opportunity.docusignDetails.stage10TriggerDate)}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.acknowledgedStartDate && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Acknowledged Date:</span>
+                        <span className="font-mono text-slate-700">{formatDate(opportunity.docusignDetails.acknowledgedStartDate)}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.envelopeId && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Envelope ID:</span>
+                        <span className="font-mono text-slate-700">{opportunity.docusignDetails.envelopeId}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.clientPoNumber && (
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Client PO #:</span>
+                        <span className="font-mono text-slate-700 font-bold">{opportunity.docusignDetails.clientPoNumber}</span>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.signedContractPoLink && (
+                      <div className="pt-1 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Signed Contract/PO:</span>
+                        <a
+                          href={opportunity.docusignDetails.signedContractPoLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-700 font-bold hover:underline inline-flex items-center gap-0.5"
+                        >
+                          View Document ↗
+                        </a>
+                      </div>
+                    )}
+                    {opportunity.docusignDetails?.isOnHold && opportunity.docusignDetails?.onHoldReason && (
+                      <div className="p-1.5 bg-amber-50 rounded border border-amber-200 text-[10px] text-amber-900 mt-1">
+                        <strong>Hold Reason:</strong> {opportunity.docusignDetails.onHoldReason}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -801,20 +1004,60 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
               {/* WIN Notification Status */}
               <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900 text-sm">WIN Announcement Email</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">11. WIN Notification Broadcast</h4>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    opportunity.winNotification?.isReleased ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                    opportunity.winNotification?.isReleased
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : opportunity.currentStage === 'WIN_NOTIFICATION'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-slate-200 text-slate-600'
                   }`}>
-                    {opportunity.winNotification?.isReleased ? 'Broadcast Released 🎉' : 'Pending Signing'}
+                    {opportunity.winNotification?.isReleased
+                      ? 'Broadcast Released 🎉'
+                      : opportunity.currentStage === 'WIN_NOTIFICATION'
+                      ? 'Awaiting WIN Broadcast'
+                      : 'Pending Prior Stages'}
                   </span>
                 </div>
-                {opportunity.winNotification?.isReleased && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 text-slate-700">
-                    <div className="font-bold text-slate-900">{opportunity.winNotification.emailSubject}</div>
-                    <pre className="mt-1 text-xs whitespace-pre-wrap font-sans text-slate-600">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs py-1 border-y border-slate-200/80">
+                  {opportunity.winNotification?.stage11TriggerDate && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Stage 11 Trigger Date:</span>
+                      <span className="font-mono text-slate-700 font-semibold">{formatDate(opportunity.winNotification.stage11TriggerDate)}</span>
+                    </div>
+                  )}
+                  {opportunity.winNotification?.acknowledgedStartDate && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Acknowledged Start Date:</span>
+                      <span className="font-mono text-amber-800 font-semibold">{formatDate(opportunity.winNotification.acknowledgedStartDate)}</span>
+                    </div>
+                  )}
+                  {opportunity.winNotification?.contractsSpecialist && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Contracts Specialist:</span>
+                      <span className="font-medium text-slate-800">{opportunity.winNotification.contractsSpecialist}</span>
+                    </div>
+                  )}
+                  {opportunity.winNotification?.releasedAt && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Released Timestamp:</span>
+                      <span className="font-mono text-emerald-700">{formatDate(opportunity.winNotification.releasedAt)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {opportunity.winNotification?.isReleased ? (
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 text-slate-700 space-y-1">
+                    <div className="font-bold text-slate-900 text-xs">{opportunity.winNotification.emailSubject}</div>
+                    <pre className="mt-1 text-xs whitespace-pre-wrap font-sans text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100">
                       {opportunity.winNotification.emailBody}
                     </pre>
                   </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">
+                    WIN broadcast email will be distributed enterprise-wide upon release by the Contracts team.
+                  </p>
                 )}
               </div>
             </div>

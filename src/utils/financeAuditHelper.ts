@@ -1,5 +1,6 @@
 import { Opportunity, FinanceAuditEntry, WorkflowStage } from '../types';
 import { STAGE_MAP } from '../data/stages';
+import { formatCurrency } from './formatters';
 
 export function getStageName(stage: WorkflowStage): string {
   const def = STAGE_MAP[stage];
@@ -206,7 +207,37 @@ export function buildFinanceAuditTrail(opp: Opportunity): FinanceAuditEntry[] {
     }
   }
 
-  // 7. Check if Stage 9 (Final Finance Approval) snapshot exists
+  // 7. Check if Stage 8 (Contract & Agreement Conversion) snapshot exists
+  if (opp.contractDetails?.clientContractPriceAmount || opp.contractDetails?.clientContractLink || opp.contractDetails?.convertedAt) {
+    const hasStage8 = entries.some(
+      (e) => e.stage === 'CONTRACT_CONVERSION' || e.eventType === 'CONTRACT_CONVERSION'
+    );
+    if (!hasStage8) {
+      const contractAmount = opp.contractDetails.clientContractPriceAmount || opp.dealValue;
+      const contractCurrency = opp.contractDetails.clientContractPriceCurrency || opp.currency || currency;
+      const internalCost = opp.solutionProposal?.ibsiInternalCost || 0;
+      const margin = contractAmount > 0 ? ((contractAmount - internalCost) / contractAmount) * 100 : undefined;
+
+      entries.push({
+        id: `contract-conv-${opp.id}`,
+        timestamp: opp.contractDetails.convertedAt || opp.contractDetails.uploadedAt || opp.contractDetails.acknowledgedStartDate || opp.updatedAt,
+        stage: 'CONTRACT_CONVERSION',
+        stageName: getStageName('CONTRACT_CONVERSION'),
+        eventType: 'CONTRACT_CONVERSION',
+        actorName: opp.contractDetails.contractsSpecialist || 'Contracts Specialist',
+        actorRole: 'CONTRACTS',
+        actionLabel: 'Converted Proposal to Contract & Price Confirmed',
+        amount: contractAmount,
+        currency: contractCurrency,
+        internalCost: internalCost > 0 ? internalCost : undefined,
+        internalCurrency: opp.solutionProposal?.ibsiInternalCurrency || contractCurrency,
+        marginPercent: margin,
+        notes: `Proposal converted to binding contract. ${opp.contractDetails.clientContractLink ? `Contract document: ${opp.contractDetails.clientContractLink}. ` : ''}Client Contract Price (TCV): ${formatCurrency(contractAmount, contractCurrency)}.`,
+      });
+    }
+  }
+
+  // 8. Check if Stage 9 (Final Finance Approval) snapshot exists
   if (opp.finalFinanceApproval?.approved || opp.finalFinanceApproval?.finalTcv) {
     const hasStage8 = entries.some(
       (e) => e.stage === 'FINAL_FINANCE_APPROVAL' || e.eventType === 'FINAL_FINANCE_APPROVAL'
