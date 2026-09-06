@@ -272,6 +272,12 @@ export interface ParallelFinanceData {
   billingFrequency?: 'MILESTONE' | 'MONTHLY' | 'UPFRONT_50_50' | 'COMPLETION';
   financeOfficer?: string;
   isConfigured: boolean;
+  contractRenewalType?: 'RECURRING' | 'NON_RECURRING';
+  contractOwner?: string;
+  isFinanceCompleted?: boolean;
+  financeCompletedAt?: string;
+  trackAStartTriggerDate?: string;
+  targetSlaDays?: number;
 }
 
 export interface DeliveryMilestone {
@@ -292,16 +298,50 @@ export interface ParallelPmoData {
   milestones: DeliveryMilestone[];
   deliveryNotes?: string;
   isKickoffCompleted: boolean;
+  division?: string;
+  businessUnit?: string;
+  isProject?: boolean;
+  projectStartDate?: string;
+  targetEndDate?: string;
+  computedDays?: number;
+  actualGoLiveDate?: string;
+  actualClosureDate?: string;
+  businessUnitOwner?: string;
+  deliveryClosureDate?: string;
+  notesOrDescription?: string;
+  isDeliveryCompleted?: boolean;
+  deliveryCompletedAt?: string;
+  trackBStartTriggerDate?: string;
+  targetSlaDays?: number;
+}
+
+export interface SlaExtensionEntry {
+  id: string;
+  timestamp: string;
+  daysAdded: number;
+  reason: string;
+  extendedBy: string;
+  originalSlaDays: number;
+  newTotalSlaDays: number;
 }
 
 export interface CwcRecord {
   cwcNumber?: string;
   issuedDate?: string;
   pmoLeadSigner?: string;
+  cwcRoutedBy?: string;
   clientApproverName?: string;
   acceptanceRemarks?: string;
   isAcceptedByClient: boolean;
   documentRef?: string;
+  stage13TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  acknowledgementSlaDays?: number;
+  originalSlaDays?: number;
+  extendedSlaDays?: number;
+  slaExtendedCount?: number;
+  slaExtensionHistory?: SlaExtensionEntry[];
+  returnReason?: string;
 }
 
 export interface BillingRecord {
@@ -314,6 +354,15 @@ export interface BillingRecord {
   paymentStatus: 'DRAFT' | 'ISSUED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
   endorsementNotes?: string;
   confirmedByFinanceDate?: string;
+
+  // Stage 14 Governance & SLA Tracking
+  stage14TriggerDate?: string;
+  acknowledgedStartDate?: string;
+  slaTriggerToAckDays?: number;
+  stage14TargetSlaDays?: number;
+  financeProcessor?: string;
+  returnReason?: string;
+  returnCount?: number;
 }
 
 export interface FinanceAuditEntry {

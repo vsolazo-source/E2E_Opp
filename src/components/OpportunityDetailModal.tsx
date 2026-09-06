@@ -1067,67 +1067,301 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
           {activeTab === 'PMO_BILLING' && (
             <div className="space-y-4 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Finance Setup */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-purple-200 space-y-2">
-                  <h4 className="font-bold text-purple-900 text-sm">Finance Budget Allocation</h4>
+                {/* Track A: Finance Setup */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-purple-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-purple-900 text-sm">Track A: Finance Setup</h4>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      opportunity.parallelFinance?.isFinanceCompleted
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-purple-100 text-purple-800'
+                    }`}>
+                      {opportunity.parallelFinance?.isFinanceCompleted ? 'Completed ✅' : 'Ongoing / In Progress'}
+                    </span>
+                  </div>
+
                   <div className="space-y-1.5">
-                    <div>
-                      <span className="text-slate-500 block">Budget Code</span>
-                      <span className="font-bold text-slate-800">{opportunity.parallelFinance?.budgetCode || 'Pending Assignment'}</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Budget Code</span>
+                        <span className="font-bold text-slate-800 font-mono">{opportunity.parallelFinance?.budgetCode || 'Pending Assignment'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Contract Code</span>
+                        <span className="font-bold text-slate-800 font-mono">{opportunity.parallelFinance?.contractCode || 'Pending Assignment'}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-500 block">Contract Code</span>
-                      <span className="font-bold text-slate-800">{opportunity.parallelFinance?.contractCode || 'Pending Assignment'}</span>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Contract Start Date</span>
+                        <span className="text-slate-800 font-medium">{formatDate(opportunity.parallelFinance?.contractStartDate) || 'Not specified'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Contract End Date</span>
+                        <span className="text-slate-800 font-medium">{formatDate(opportunity.parallelFinance?.contractEndDate) || 'Not specified'}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-500 block">Contract Period</span>
-                      <span className="text-slate-700">{formatDate(opportunity.parallelFinance?.contractStartDate)} to {formatDate(opportunity.parallelFinance?.contractEndDate)}</span>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Contract Renewal Nature</span>
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mt-0.5 ${
+                          opportunity.parallelFinance?.contractRenewalType === 'RECURRING'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {opportunity.parallelFinance?.contractRenewalType === 'RECURRING' ? 'Recurring (Renewal)' : 'Non-Recurring (One-off)'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Contract Owner</span>
+                        <span className="font-bold text-slate-800 truncate block">
+                          {opportunity.parallelFinance?.contractOwner || opportunity.contractDetails?.contractsSpecialist || 'Unassigned'}
+                        </span>
+                      </div>
                     </div>
+
+                    {opportunity.parallelFinance?.financeCompletedAt && (
+                      <div className="text-[10px] text-emerald-700 font-medium pt-1">
+                        SLA Stopped: {formatDate(opportunity.parallelFinance.financeCompletedAt)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* PMO Delivery */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-cyan-200 space-y-2">
-                  <h4 className="font-bold text-cyan-900 text-sm">PMO Delivery Status</h4>
+                {/* Track B: PMO / BU Delivery */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-cyan-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-cyan-900 text-sm">Track B: PMO / BU Delivery</h4>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      opportunity.parallelPmo?.isDeliveryCompleted
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-cyan-100 text-cyan-800'
+                    }`}>
+                      {opportunity.parallelPmo?.isDeliveryCompleted ? 'Completed ✅' : 'Ongoing / In Progress'}
+                    </span>
+                  </div>
+
                   <div className="space-y-1.5">
-                    <div>
-                      <span className="text-slate-500 block">Project Manager</span>
-                      <span className="font-bold text-slate-800">{opportunity.parallelPmo?.projectManager || 'Unassigned'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 block">Progress</span>
-                      <div className="flex items-center space-x-2 mt-0.5">
-                        <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div
-                            className="bg-cyan-600 h-full transition-all"
-                            style={{ width: `${opportunity.parallelPmo?.progressPercentage || 0}%` }}
-                          />
-                        </div>
-                        <span className="font-bold">{opportunity.parallelPmo?.progressPercentage || 0}%</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Division</span>
+                        <span className="font-bold text-slate-800 truncate block">
+                          {opportunity.parallelPmo?.division || opportunity.division || 'Unassigned'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block text-[10px]">Business Unit</span>
+                        <span className="font-bold text-slate-800 truncate block">
+                          {opportunity.parallelPmo?.businessUnit || opportunity.businessUnit || 'Unassigned'}
+                        </span>
                       </div>
                     </div>
+
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">Delivery Nature</span>
+                      <span className="font-semibold text-slate-700">
+                        {opportunity.parallelPmo?.isProject !== false ? 'Project Delivery' : 'Non-Project Service Delivery'}
+                      </span>
+                    </div>
+
+                    {opportunity.parallelPmo?.isProject !== false ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Project Manager</span>
+                            <span className="font-bold text-slate-800">{opportunity.parallelPmo?.projectManager || 'Unassigned'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Delivery Status</span>
+                            <span className="font-semibold text-slate-700">{opportunity.parallelPmo?.deliveryHealth || 'ON_TRACK'}</span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Progress ({opportunity.parallelPmo?.progressPercentage || 0}%)</span>
+                          <div className="flex items-center space-x-2 mt-0.5">
+                            <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-cyan-600 h-full transition-all"
+                                style={{ width: `${opportunity.parallelPmo?.progressPercentage || 0}%` }}
+                              />
+                            </div>
+                            <span className="font-bold">{opportunity.parallelPmo?.progressPercentage || 0}%</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1.5 text-[10px] pt-1 border-t border-slate-200">
+                          <div>
+                            <span className="text-slate-400 block">Start Date</span>
+                            <span className="font-medium text-slate-700">{formatDate(opportunity.parallelPmo?.projectStartDate) || '-'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">Target End</span>
+                            <span className="font-medium text-slate-700">{formatDate(opportunity.parallelPmo?.targetEndDate) || '-'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block">Computed Days (SLA)</span>
+                            <span className="font-bold text-cyan-700">{opportunity.parallelPmo?.computedDays || '-'} days</span>
+                          </div>
+                        </div>
+
+                        {(opportunity.parallelPmo?.actualGoLiveDate || opportunity.parallelPmo?.actualClosureDate) && (
+                          <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div>
+                              <span className="text-slate-400 block">Actual Go Live</span>
+                              <span className="font-medium text-slate-700">{formatDate(opportunity.parallelPmo?.actualGoLiveDate) || '-'}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block">Actual Closure</span>
+                              <span className="font-medium text-slate-700">{formatDate(opportunity.parallelPmo?.actualClosureDate) || '-'}</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-1.5 pt-1 border-t border-slate-200">
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Business Unit Owner</span>
+                          <span className="font-bold text-slate-800">{opportunity.parallelPmo?.businessUnitOwner || 'Unassigned'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px]">Delivery Closure Date</span>
+                          <span className="font-medium text-slate-700">{formatDate(opportunity.parallelPmo?.deliveryClosureDate) || 'Pending'}</span>
+                        </div>
+                        {opportunity.parallelPmo?.notesOrDescription && (
+                          <div>
+                            <span className="text-slate-500 block text-[10px]">Delivery Description</span>
+                            <p className="text-slate-700 bg-white p-2 rounded border border-slate-200 text-[11px] whitespace-pre-wrap">
+                              {opportunity.parallelPmo?.notesOrDescription}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {opportunity.parallelPmo?.deliveryCompletedAt && (
+                      <div className="text-[10px] text-emerald-700 font-medium pt-1">
+                        SLA Stopped: {formatDate(opportunity.parallelPmo.deliveryCompletedAt)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* CWC & Billing Box */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-emerald-200 space-y-3">
-                <h4 className="font-bold text-emerald-900 text-sm">CWC Endorsement & Billing Status</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-50 rounded-xl p-4 border border-teal-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-teal-950 text-sm">Certificate of Work Completion (CWC) & Billing Status</h4>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    opportunity.cwcRecord?.isAcceptedByClient
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : opportunity.currentStage === 'CWC_DELIVERY'
+                      ? 'bg-teal-100 text-teal-800 border border-teal-300'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {opportunity.cwcRecord?.isAcceptedByClient
+                      ? 'CWC Client Accepted ✅'
+                      : opportunity.currentStage === 'CWC_DELIVERY'
+                      ? 'CWC Routing Active ⏳'
+                      : 'Pending Stage 13'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                   <div className="bg-white p-3 rounded-lg border border-slate-200">
                     <span className="text-slate-500 block text-[10px]">CWC Document #</span>
-                    <span className="font-bold text-slate-800">{opportunity.cwcRecord?.cwcNumber || 'Pending Signoff'}</span>
-                    <span className="text-[10px] text-slate-400 block">{opportunity.cwcRecord?.isAcceptedByClient ? 'Client Accepted' : 'In Review'}</span>
+                    <span className="font-bold text-slate-800 font-mono text-xs">{opportunity.cwcRecord?.cwcNumber || 'Pending Generation'}</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      {opportunity.cwcRecord?.isAcceptedByClient ? 'Signed & Endorsed' : 'Awaiting Final Signoff'}
+                    </span>
                   </div>
+
                   <div className="bg-white p-3 rounded-lg border border-slate-200">
-                    <span className="text-slate-500 block text-[10px]">Invoice Reference</span>
-                    <span className="font-bold text-slate-800">{opportunity.billingRecord?.invoiceNumber || 'Draft'}</span>
+                    <span className="text-slate-500 block text-[10px]">CWC Routed By</span>
+                    <span className="font-bold text-slate-800 text-xs truncate block">
+                      {opportunity.cwcRecord?.cwcRoutedBy || opportunity.cwcRecord?.pmoLeadSigner || opportunity.parallelPmo?.projectManager || 'Unassigned'}
+                    </span>
+                    <span className="text-[10px] text-purple-700 block mt-0.5">PMO / Delivery Signer</span>
                   </div>
+
                   <div className="bg-white p-3 rounded-lg border border-slate-200">
-                    <span className="text-slate-500 block text-[10px]">Payment Status</span>
-                    <span className="font-bold text-emerald-700">{opportunity.billingRecord?.paymentStatus || 'Pending'}</span>
+                    <span className="text-slate-500 block text-[10px]">Stage 13 Trigger Date</span>
+                    <span className="font-medium text-slate-800 text-xs">
+                      {formatDate(opportunity.cwcRecord?.stage13TriggerDate) || (opportunity.currentStage === 'CWC_DELIVERY' ? formatDate(opportunity.stageEnteredAt) : 'Pending Entry')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">System Recorded</span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="text-slate-500 block text-[10px]">Acknowledged Start Date</span>
+                    <span className="font-bold text-teal-800 text-xs">
+                      {formatDate(opportunity.cwcRecord?.acknowledgedStartDate) || 'Awaiting Start'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5">Main SLA Reference</span>
                   </div>
                 </div>
+
+                {/* SLA Extension & Billing Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-slate-500 block text-[10px]">CWC Stage SLA Governance</span>
+                    <div className="flex items-center space-x-1.5 mt-0.5">
+                      <span className="font-bold text-slate-800 text-xs">
+                        Base: {opportunity.cwcRecord?.originalSlaDays || 5}d
+                      </span>
+                      {(opportunity.cwcRecord?.extendedSlaDays || 0) > 0 && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                          +{opportunity.cwcRecord?.extendedSlaDays}d Extended ({opportunity.cwcRecord?.slaExtendedCount || 1}x)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-slate-500 block text-[10px]">Invoice Reference #</span>
+                    <span className="font-bold text-slate-800 font-mono text-xs">{opportunity.billingRecord?.invoiceNumber || 'Draft'}</span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-slate-500 block text-[10px]">Payment Status</span>
+                    <span className="font-bold text-emerald-700 text-xs">{opportunity.billingRecord?.paymentStatus || 'Pending'}</span>
+                  </div>
+                </div>
+
+                {/* Stage 14 Finance Endorsement Governance Details */}
+                {opportunity.billingRecord && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">Finance Processor</span>
+                      <span className="font-bold text-slate-800 text-xs">
+                        {opportunity.billingRecord.financeProcessor || opportunity.financeProcessor || 'Finance Controller'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">Stage 14 Trigger Date</span>
+                      <span className="font-semibold text-slate-700 text-xs">
+                        {formatDate(opportunity.billingRecord.stage14TriggerDate) || 'Pending Ingress'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-slate-500 block text-[10px]">AR Acknowledged Start Date</span>
+                      <span className="font-bold text-emerald-800 text-xs">
+                        {formatDate(opportunity.billingRecord.acknowledgedStartDate) || 'Awaiting Start'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {opportunity.cwcRecord?.acceptanceRemarks && (
+                  <div className="text-[11px] bg-white p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-slate-500 block text-[10px]">Client Acceptance Remarks:</span>
+                    <span className="text-slate-700 italic">{opportunity.cwcRecord.acceptanceRemarks}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

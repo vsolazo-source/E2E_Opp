@@ -50,6 +50,9 @@ import { ConvertedProposalToContractSection } from './ConvertedProposalToContrac
 import { FinalFinanceApprovalSection } from './FinalFinanceApprovalSection';
 import { DocuSignClientRoutingSection } from './DocuSignClientRoutingSection';
 import { WinNotificationSection } from './WinNotificationSection';
+import { ParallelExecutionSection } from './ParallelExecutionSection';
+import { CwcDeliverySection } from './CwcDeliverySection';
+import { FinanceBillingEndorsementSection } from './FinanceBillingEndorsementSection';
 
 interface StageActionPanelProps {
   opportunity: Opportunity;
@@ -6560,340 +6563,56 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
 
       {/* STAGE 12: PARALLEL EXECUTION (FINANCE & PMO TRACKS) */}
       {currentStage === 'PARALLEL_EXECUTION' && (
-        <div className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* Track 1: Finance Budget & TCV Setup */}
-            <div className="bg-white rounded-xl border border-purple-200 p-4 space-y-3">
-              <div className="flex items-center space-x-2 text-purple-900 font-bold text-sm">
-                <DollarSign className="w-4 h-4 text-purple-600" />
-                <span>Track A: Finance Budget & Contract Setup</span>
-              </div>
-
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-slate-600 font-medium">Assigned Budget Code</label>
-                  <input
-                    type="text"
-                    value={opportunity.parallelFinance?.budgetCode || ''}
-                    onChange={(e) => onUpdateOpportunity({
-                      ...opportunity,
-                      parallelFinance: { ...opportunity.parallelFinance, budgetCode: e.target.value }
-                    })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-slate-700 font-bold text-xs">Contract Code / Reference #</label>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-                      Finance Verified
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    value={opportunity.parallelFinance?.contractCode || opportunity.contractDetails?.contractNumber || ((opportunity.trackingCode || '').includes('-OPP-') ? (opportunity.trackingCode || '').replace('-OPP-', '-CTR-') : `CTR-${(opportunity.trackingCode || opportunity.id || '').replace(/^OPP-/, '')}`)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      onUpdateOpportunity({
-                        ...opportunity,
-                        parallelFinance: { ...opportunity.parallelFinance, contractCode: val },
-                        contractDetails: { ...opportunity.contractDetails, contractNumber: val }
-                      });
-                    }}
-                    placeholder="e.g. CTR-2026-001"
-                    className="w-full px-3 py-1.5 bg-white border border-purple-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  />
-                  <span className="text-[10px] text-slate-500 block mt-0.5">
-                    Official master contract reference number designated by Finance for billing, invoicing, and audits.
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-slate-600 font-medium">Start Date</label>
-                    <input
-                      type="date"
-                      value={opportunity.parallelFinance?.contractStartDate || ''}
-                      onChange={(e) => onUpdateOpportunity({
-                        ...opportunity,
-                        parallelFinance: { ...opportunity.parallelFinance, contractStartDate: e.target.value }
-                      })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-600 font-medium">End Date</label>
-                    <input
-                      type="date"
-                      value={opportunity.parallelFinance?.contractEndDate || ''}
-                      onChange={(e) => onUpdateOpportunity({
-                        ...opportunity,
-                        parallelFinance: { ...opportunity.parallelFinance, contractEndDate: e.target.value }
-                      })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Track 2: PMO Project Delivery Kickoff */}
-            <div className="bg-white rounded-xl border border-cyan-200 p-4 space-y-3">
-              <div className="flex items-center space-x-2 text-cyan-900 font-bold text-sm">
-                <CheckSquare className="w-4 h-4 text-cyan-600" />
-                <span>Track B: PMO / BU Delivery Execution</span>
-              </div>
-
-              <div className="space-y-2">
-                <div>
-                  <label className="block text-slate-600 font-medium">Assigned Project Manager</label>
-                  <input
-                    type="text"
-                    value={opportunity.parallelPmo?.projectManager || ''}
-                    onChange={(e) => onUpdateOpportunity({
-                      ...opportunity,
-                      parallelPmo: { ...opportunity.parallelPmo, projectManager: e.target.value }
-                    })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-medium">Delivery Completion %</label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={opportunity.parallelPmo?.progressPercentage || 0}
-                      onChange={(e) => onUpdateOpportunity({
-                        ...opportunity,
-                        parallelPmo: { ...opportunity.parallelPmo, progressPercentage: Number(e.target.value) }
-                      })}
-                      className="flex-1 accent-cyan-600"
-                    />
-                    <span className="font-bold text-slate-800 w-10 text-right">{opportunity.parallelPmo?.progressPercentage || 0}%</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-600 font-medium">Delivery Status</label>
-                  <select
-                    value={opportunity.parallelPmo?.deliveryHealth || 'ON_TRACK'}
-                    onChange={(e: any) => onUpdateOpportunity({
-                      ...opportunity,
-                      parallelPmo: { ...opportunity.parallelPmo, deliveryHealth: e.target.value }
-                    })}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold"
-                  >
-                    <option value="ON_TRACK">🟢 On Track (Healthy)</option>
-                    <option value="AT_RISK">🟡 At Risk (Requires Attention)</option>
-                    <option value="DELAYED">🔴 Delayed</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-2">
-            <button
-              onClick={() => {
-                const oppTracking = opportunity.trackingCode || opportunity.id || 'OPP-001';
-                const extraUpdates: Partial<Opportunity> = {
-                  parallelPmo: {
-                    ...opportunity.parallelPmo,
-                    progressPercentage: 100,
-                  },
-                  cwcRecord: {
-                    ...opportunity.cwcRecord,
-                    cwcNumber: opportunity.cwcRecord?.cwcNumber || (oppTracking.includes('-OPP-') ? oppTracking.replace('-OPP-', '-CWC-') : `CWC-${new Date().getFullYear()}-${oppTracking.replace(/^OPP-/, '')}`),
-                    issuedDate: new Date().toISOString().split('T')[0],
-                    pmoLeadSigner: opportunity.parallelPmo?.projectManager || 'Samantha Reynolds, PMP',
-                    clientApproverName: opportunity.clientContactName,
-                    acceptanceRemarks: 'All deliverables tested and validated against SOW specifications.',
-                  }
-                };
-                onAdvanceStage(
-                  'CWC_DELIVERY',
-                  'Delivery Complete: Generated CWC',
-                  comments || 'PMO completed project milestones. Initialized Certificate of Work Completion.',
-                  extraUpdates
-                );
-              }}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg bg-cyan-700 text-white hover:bg-cyan-800 shadow-xs transition-all"
-            >
-              Milestones Complete → Issue CWC (PMO Sign-off)
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </button>
-          </div>
-        </div>
+        <ParallelExecutionSection
+          opportunity={opportunity}
+          currentRole={currentRole}
+          resources={resources}
+          formSelectors={formSelectors}
+          comments={comments}
+          setComments={setComments}
+          onUpdateOpportunity={onUpdateOpportunity}
+          onAdvanceToCwcDelivery={(actionName, stepComments, extraUpdates) => {
+            onAdvanceStage(
+              'CWC_DELIVERY',
+              actionName,
+              stepComments || comments || 'Parallel finance and PMO delivery tracks successfully completed.',
+              extraUpdates
+            );
+          }}
+        />
       )}
 
       {/* STAGE 13: CERTIFICATE OF WORK COMPLETION (CWC) */}
       {currentStage === 'CWC_DELIVERY' && (
-        <div className="space-y-4 text-xs">
-          <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">Certificate of Work Completion (CWC) Details</span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-teal-100 text-teal-800">
-                PMO & BU Endorsement
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">CWC Reference #</label>
-                <input
-                  type="text"
-                  value={opportunity.cwcRecord?.cwcNumber || (opportunity.trackingCode.includes('-OPP-') ? opportunity.trackingCode.replace('-OPP-', '-CWC-') : `CWC-2026-${opportunity.trackingCode.replace(/^OPP-/, '')}`)}
-                  onChange={(e) => onUpdateOpportunity({
-                    ...opportunity,
-                    cwcRecord: { ...opportunity.cwcRecord, cwcNumber: e.target.value }
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">PMO Lead Signer</label>
-                <input
-                  type="text"
-                  value={opportunity.cwcRecord?.pmoLeadSigner || opportunity.parallelPmo?.projectManager || ''}
-                  onChange={(e) => onUpdateOpportunity({
-                    ...opportunity,
-                    cwcRecord: { ...opportunity.cwcRecord, pmoLeadSigner: e.target.value }
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-700 font-medium mb-1">Client Acceptance Verification Remarks</label>
-              <textarea
-                rows={2}
-                value={opportunity.cwcRecord?.acceptanceRemarks || ''}
-                onChange={(e) => onUpdateOpportunity({
-                  ...opportunity,
-                  cwcRecord: { ...opportunity.cwcRecord, acceptanceRemarks: e.target.value }
-                })}
-                placeholder="Final user acceptance testing complete and accepted by client sponsor..."
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-2">
-            <button
-              onClick={() => {
-                const oppTracking = opportunity.trackingCode || opportunity.id || 'OPP-001';
-                const extraUpdates: Partial<Opportunity> = {
-                  cwcRecord: {
-                    ...opportunity.cwcRecord,
-                    isAcceptedByClient: true,
-                  },
-                  billingRecord: {
-                    ...opportunity.billingRecord,
-                    invoiceNumber: opportunity.billingRecord?.invoiceNumber || (oppTracking.includes('-OPP-') ? oppTracking.replace('-OPP-', '-INV-') : `INV-2026-${oppTracking.replace(/^OPP-/, '')}`),
-                    invoiceAmount: opportunity.dealValue,
-                    totalAmount: opportunity.dealValue,
-                    invoiceDate: new Date().toISOString().split('T')[0],
-                    paymentDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    paymentStatus: 'ISSUED' as const,
-                  }
-                };
-                onAdvanceStage(
-                  'FINANCE_BILLING_ENDORSEMENT',
-                  'CWC Signed & Endorsed to Finance',
-                  comments || 'PMO signed CWC. Endorsed to Finance for final billing.',
-                  extraUpdates
-                );
-              }}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg bg-teal-600 text-white hover:bg-teal-700 shadow-xs transition-all"
-            >
-              Sign CWC & Endorse to Finance for Billing
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </button>
-          </div>
-        </div>
+        <CwcDeliverySection
+          opportunity={opportunity}
+          currentRole={currentRole}
+          resources={resources}
+          comments={comments}
+          setComments={setComments}
+          onUpdateOpportunity={onUpdateOpportunity}
+          onAdvanceToBilling={(actionName, stepComments, extraUpdates) => {
+            onAdvanceStage(
+              'FINANCE_BILLING_ENDORSEMENT',
+              actionName,
+              stepComments || comments || 'CWC signed off by PMO and Client. Endorsing to Finance team for billing.',
+              extraUpdates
+            );
+          }}
+        />
       )}
 
       {/* STAGE 14: FINANCE BILLING ENDORSEMENT */}
       {currentStage === 'FINANCE_BILLING_ENDORSEMENT' && (
-        <div className="space-y-4 text-xs">
-          <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-900 text-sm">Finance Invoice Generation & Billing</span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800">
-                Accounts Receivable
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Invoice Reference #</label>
-                <input
-                  type="text"
-                  value={opportunity.billingRecord?.invoiceNumber || ''}
-                  onChange={(e) => onUpdateOpportunity({
-                    ...opportunity,
-                    billingRecord: { ...opportunity.billingRecord, invoiceNumber: e.target.value }
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Invoice Amount ($)</label>
-                <input
-                  type="number"
-                  value={opportunity.billingRecord?.totalAmount || opportunity.dealValue}
-                  onChange={(e) => onUpdateOpportunity({
-                    ...opportunity,
-                    billingRecord: { ...opportunity.billingRecord, totalAmount: Number(e.target.value) }
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Payment Status</label>
-                <select
-                  value={opportunity.billingRecord?.paymentStatus || 'ISSUED'}
-                  onChange={(e: any) => onUpdateOpportunity({
-                    ...opportunity,
-                    billingRecord: { ...opportunity.billingRecord, paymentStatus: e.target.value }
-                  })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold"
-                >
-                  <option value="ISSUED">📨 Invoice Issued (Pending Payment)</option>
-                  <option value="PAID">✅ Paid / Collected</option>
-                  <option value="OVERDUE">⚠️ Overdue</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-2">
-            <button
-              onClick={() => {
-                const extraUpdates: Partial<Opportunity> = {
-                  billingRecord: {
-                    ...opportunity.billingRecord,
-                    paymentStatus: 'PAID' as const,
-                    confirmedByFinanceDate: new Date().toISOString(),
-                  }
-                };
-                onAdvanceStage(
-                  'DEAL_CLOSED',
-                  'Payment Collected & Deal Closed',
-                  comments || 'Finance confirmed full payment collection. Project formally closed & archived.',
-                  extraUpdates
-                );
-              }}
-              className="inline-flex items-center px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-all"
-            >
-              Confirm Full Collection & Close Deal 🎉
-              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-            </button>
-          </div>
-        </div>
+        <FinanceBillingEndorsementSection
+          opportunity={opportunity}
+          currentRole={currentRole}
+          resources={resources}
+          comments={comments}
+          setComments={setComments}
+          onUpdateOpportunity={onUpdateOpportunity}
+          onAdvanceStage={onAdvanceStage}
+        />
       )}
 
       {/* STAGE 15: DEAL CLOSED */}
