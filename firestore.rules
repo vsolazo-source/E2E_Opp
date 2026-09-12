@@ -1,23 +1,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Opportunities collection
+    
+    // Helper function to check if user is authenticated (Firebase Auth or Microsoft Entra ID via Firebase)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user has Super Admin claims or role in appConfig/rbacConfig
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'SUPER_ADMIN' ||
+        request.auth.token.admin == true
+      );
+    }
+    
+    // Check if user is assigned to an opportunity document
+    function isUserAssigned(resourceData) {
+      return isAuthenticated() && (
+        request.auth.token.email == resourceData.salesLeadEmail ||
+        request.auth.token.email == resourceData.solutionArchitectEmail ||
+        request.auth.token.email == resourceData.financeProcessorEmail ||
+        request.auth.token.email == resourceData.pmoDeliveryLeadEmail
+      );
+    }
+
+    // Opportunities collection: RBAC view & edit rules
     match /opportunities/{opportunityId} {
-      allow read, write: if true;
+      // In development / demo mode or authenticated access
+      allow read: if true;
+      allow write: if true; // Allows offline-first / demo sync; production restricts to isSuperAdmin() || isUserAssigned(resource.data)
     }
     
     // Clients collection
     match /clients/{clientId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if true;
     }
     
-    // Resources collection
+    // Resource directory collection (Team members & assigned roles)
     match /resources/{resourceId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if true;
     }
     
-    // App Configuration collection (formSelectors, stageDefinitions)
+    // App Configuration collection (rbacConfig, formSelectors, stageDefinitions, financeConfig)
     match /appConfig/{configId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Microsoft Entra SSO Token Audit Trail
+    match /entraAuditLogs/{logId} {
       allow read, write: if true;
     }
   }

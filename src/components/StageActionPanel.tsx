@@ -11,6 +11,7 @@ import {
   Briefcase, 
   Layers, 
   ShieldCheck, 
+  ShieldAlert,
   Mail, 
   FileCheck, 
   CheckSquare, 
@@ -53,10 +54,14 @@ import { WinNotificationSection } from './WinNotificationSection';
 import { ParallelExecutionSection } from './ParallelExecutionSection';
 import { CwcDeliverySection } from './CwcDeliverySection';
 import { FinanceBillingEndorsementSection } from './FinanceBillingEndorsementSection';
+import { UserProfile, RbacConfig } from '../types/rbac';
+import { checkStageAccess } from '../utils/rbac';
 
 interface StageActionPanelProps {
   opportunity: Opportunity;
   currentRole: StakeholderRole;
+  currentUser?: UserProfile;
+  rbacConfig?: RbacConfig;
   formSelectors?: FormSelectorsConfig;
   clients?: ClientOrganization[];
   resources?: ResourceMember[];
@@ -69,6 +74,8 @@ interface StageActionPanelProps {
 export const StageActionPanel: React.FC<StageActionPanelProps> = ({
   opportunity,
   currentRole,
+  currentUser,
+  rbacConfig,
   formSelectors,
   clients = [],
   resources = [],
@@ -79,6 +86,21 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
 }) => {
   const currentStage = opportunity.currentStage;
   const stageDef = STAGE_MAP[currentStage];
+
+  const rbacStageCheck = useMemo(() => {
+    if (!currentUser || !rbacConfig) {
+      return {
+        canView: true,
+        canEdit: true,
+        canAdvance: true,
+        canRevert: true,
+        isAdminOverride: false,
+        requiredRoleLabel: stageDef?.actorLabel || 'Assigned Lead',
+        reason: undefined,
+      };
+    }
+    return checkStageAccess(currentStage, opportunity, currentUser, rbacConfig);
+  }, [currentStage, opportunity, currentUser, rbacConfig, stageDef]);
   
   const [comments, setComments] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -609,6 +631,35 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
           </span>
         </div>
       </div>
+
+      {/* RBAC Role Access & Policy Evaluation Notice */}
+      {!rbacStageCheck.canAdvance && (
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start space-x-3 shadow-xs">
+          <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs">
+            <div className="font-bold text-amber-950 flex items-center space-x-2">
+              <span>Stage Advancement Restricted: {rbacStageCheck.requiredRoleLabel || stageDef?.actorLabel}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200/80 text-amber-900 border border-amber-300">
+                View Only
+              </span>
+            </div>
+            <p className="mt-1 text-amber-800 leading-relaxed">
+              {rbacStageCheck.reason ||
+                `You are currently signed in as ${currentUser?.name} (${currentUser?.systemRole}). Stage actions and approval transitions are restricted to the designated role (${rbacStageCheck.requiredRoleLabel}).`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {rbacStageCheck.isAdminOverride && (
+        <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 flex items-center justify-between text-xs shadow-xs">
+          <div className="flex items-center space-x-2">
+            <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="font-bold">Super Admin Governance Override:</span>
+            <span className="text-indigo-700">You have full administrative privileges to advance, approve, or revert this stage.</span>
+          </div>
+        </div>
+      )}
 
       {aiError && (
         <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center">
@@ -6587,6 +6638,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         <CwcDeliverySection
           opportunity={opportunity}
           currentRole={currentRole}
+          currentUserName={currentUser?.name || (currentRole === 'ALL' ? 'PMO Delivery Lead' : currentRole)}
           resources={resources}
           comments={comments}
           setComments={setComments}
@@ -6607,6 +6659,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
         <FinanceBillingEndorsementSection
           opportunity={opportunity}
           currentRole={currentRole}
+          currentUserName={currentUser?.name || (currentRole === 'ALL' ? 'Finance Processor' : currentRole)}
           resources={resources}
           comments={comments}
           setComments={setComments}

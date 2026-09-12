@@ -21,10 +21,16 @@ import {
 import { Opportunity, WorkflowStage, StakeholderRole, FormSelectorsConfig, StageDefinition } from '../types';
 import { WORKFLOW_STAGES, STAGE_MAP, BU_LABELS } from '../data/stages';
 import { formatCurrency, formatDate, getSlaStatus } from '../utils/formatters';
+import { UserProfile, RbacConfig } from '../types/rbac';
+import { canUserViewOpportunity, isUserAssignedToOpportunity, checkStageAccess } from '../utils/rbac';
 
 interface OpportunityListProps {
   opportunities: Opportunity[];
   currentRole: StakeholderRole;
+  currentUser?: UserProfile;
+  rbacConfig?: RbacConfig;
+  onlyAssignedFilter?: boolean;
+  onToggleOnlyAssignedFilter?: (val: boolean) => void;
   selectedStageFilter: WorkflowStage | 'ALL';
   formSelectors?: FormSelectorsConfig;
   stageDefinitions?: StageDefinition[];
@@ -35,6 +41,10 @@ interface OpportunityListProps {
 export const OpportunityList: React.FC<OpportunityListProps> = ({
   opportunities,
   currentRole,
+  currentUser,
+  rbacConfig,
+  onlyAssignedFilter = false,
+  onToggleOnlyAssignedFilter,
   selectedStageFilter,
   formSelectors,
   stageDefinitions,
@@ -52,9 +62,19 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
   const activeDepartments = (formSelectors?.departments || []).filter((d) => d.isActive !== false);
   const activePriorities = (formSelectors?.priorities || []).filter((p) => p.isActive !== false);
 
-  // Filtered dataset with comprehensive matching on client, title, and assigned resource
+  // Filtered dataset with comprehensive matching on client, title, assigned resource, and RBAC view permissions
   const filteredOpportunities = useMemo(() => {
     return opportunities.filter((opp) => {
+      // 0. RBAC Authorization: Can this user view this opportunity?
+      if (currentUser && rbacConfig) {
+        if (!canUserViewOpportunity(opp, currentUser, rbacConfig, onlyAssignedFilter)) {
+          return false;
+        }
+      } else if (onlyAssignedFilter && currentUser) {
+        if (!isUserAssignedToOpportunity(opp, currentUser)) {
+          return false;
+        }
+      }
       // Search by Client Name, Deal Title, Tracking Code, or Assigned Resources
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
@@ -307,6 +327,29 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
               <Clock className="w-3.5 h-3.5 mr-1" />
               SLA Overdue Only
             </button>
+
+            {/* RBAC: My Assigned Deals Only Toggle */}
+            {currentUser && onToggleOnlyAssignedFilter && (
+              <button
+                type="button"
+                id="btn-filter-only-assigned"
+                onClick={() => onToggleOnlyAssignedFilter(!onlyAssignedFilter)}
+                className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center ${
+                  onlyAssignedFilter
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                }`}
+                title="Filter opportunities where you are designated as Sales Lead, SA, BU Owner, Reviewer, or PM"
+              >
+                <UserCheck className="w-3.5 h-3.5 mr-1 text-inherit" />
+                <span>My Assigned Deals</span>
+                {onlyAssignedFilter && (
+                  <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] bg-white/25 font-bold">
+                    Active
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* View Mode Toggle */}
             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-0.5 ml-auto">

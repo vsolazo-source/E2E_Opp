@@ -22,6 +22,7 @@ interface NavbarProps {
   onResetData?: () => void;
   onExportData?: () => void;
   dbStatus?: 'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'ERROR' | 'OFFLINE';
+  userProfileMenu?: React.ReactNode;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -31,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewModal,
   onOpenAiAssistant,
   dbStatus = 'CONNECTED',
+  userProfileMenu,
 }) => {
   const roles: { id: StakeholderRole; label: string; icon: React.ReactNode; color: string }[] = [
     { id: 'ALL', label: 'All Stakeholders (360°)', icon: <Building2 className="w-4 h-4" />, color: 'bg-slate-800 text-white' },
@@ -86,6 +88,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Plus className="w-4 h-4 mr-1.5 stroke-[2.5]" />
               New Opportunity
             </button>
+
+            {userProfileMenu}
           </div>
         </div>
       </div>

@@ -21,6 +21,9 @@ import {
   Clock,
   Calculator,
   ArrowRightLeft,
+  Shield,
+  Lock,
+  Crown,
 } from 'lucide-react';
 import { ClientDirectoryModal } from './ClientDirectoryModal';
 import { ClientModal } from './ClientModal';
@@ -32,6 +35,9 @@ import { FormSelectorAdminModal } from './FormSelectorAdminModal';
 import { TargetSlaAdminModal } from './TargetSlaAdminModal';
 import { OpportunityAdminModal } from './OpportunityAdminModal';
 import { FinanceAdminModal } from './FinanceAdminModal';
+import { RbacAdminModal } from './RbacAdminModal';
+import { RbacConfig, UserProfile } from '../types/rbac';
+import { DEFAULT_RBAC_CONFIG } from '../data/mockRbac';
 import { WORKFLOW_STAGES } from '../data/stages';
 import { INITIAL_FINANCE_CONFIG } from '../data/mockFinanceConfig';
 
@@ -42,7 +48,12 @@ interface AdminSectionProps {
   formSelectors: FormSelectorsConfig;
   stageDefinitions?: StageDefinition[];
   financeConfig?: FinanceAdminConfig;
+  rbacConfig?: RbacConfig;
+  currentUser?: UserProfile;
+  onOpenRbacAdmin?: () => void;
   onUpdateFinanceConfig?: (config: FinanceAdminConfig) => void;
+  onUpdateRbacConfig?: (config: RbacConfig) => void;
+  onSwitchUser?: (user: UserProfile) => void;
   onUpdateOpportunity?: (opp: Opportunity) => void;
   onDeleteOpportunity?: (oppId: string) => void;
   onMoveOpportunityStage?: (oppId: string, targetStage: WorkflowStage, reason: string) => void;
@@ -83,7 +94,12 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
   formSelectors,
   stageDefinitions = WORKFLOW_STAGES,
   financeConfig = INITIAL_FINANCE_CONFIG,
+  rbacConfig = DEFAULT_RBAC_CONFIG,
+  currentUser,
+  onOpenRbacAdmin,
   onUpdateFinanceConfig,
+  onUpdateRbacConfig,
+  onSwitchUser,
   onUpdateOpportunity,
   onDeleteOpportunity,
   onMoveOpportunityStage,
@@ -102,6 +118,9 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
   onResetData,
   onSelectOpportunity,
 }) => {
+  // Modal State for RBAC & Entra Governance
+  const [isRbacAdminOpen, setIsRbacAdminOpen] = useState(false);
+
   // Modal State for Opportunity Admin Tool (NEW)
   const [isOpportunityAdminOpen, setIsOpportunityAdminOpen] = useState(false);
 
@@ -259,6 +278,57 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
 
           {/* Micro Telemetry Indicators */}
           <div className="flex items-center flex-wrap gap-2 text-xs">
+            {currentUser?.systemRole === 'SUPER_ADMIN' ? (
+              <div className="px-3 py-2 rounded-xl bg-rose-950/70 border border-rose-600/60 flex items-center space-x-2 text-rose-200">
+                <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                <span className="text-slate-300">Super Admin:</span>
+                <span className="font-bold text-white">{currentUser.name || 'Victor Solazo'}</span>
+                <span className="text-[10px] px-1.5 py-0.2 bg-rose-800/80 rounded text-rose-100 font-bold border border-rose-500/40">
+                  ALL STAGES
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                id="btn-admin-switch-super-admin"
+                onClick={() => {
+                  if (onSwitchUser) {
+                    const adminRes = resources.find(
+                      (r) => r.systemRole === 'SUPER_ADMIN' || r.id === 'res-admin-1' || (r.email && r.email.toLowerCase() === 'vsolazo@ibs.com.ph')
+                    ) || {
+                      id: 'res-admin-1',
+                      name: 'Victor Solazo',
+                      email: 'vsolazo@ibs.com.ph',
+                      role: 'VP of Solutions & Enterprise Governance',
+                      division: 'Strategic Enterprise Solutions',
+                      department: 'Executive Governance & Technology',
+                      systemRole: 'SUPER_ADMIN' as const,
+                      accessScope: 'ALL' as const,
+                    };
+                    onSwitchUser({
+                      id: adminRes.id,
+                      name: adminRes.name,
+                      email: adminRes.email || 'vsolazo@ibs.com.ph',
+                      systemRole: 'SUPER_ADMIN',
+                      stakeholderLens: 'ALL',
+                      department: adminRes.department || 'Executive Governance & Technology',
+                      division: adminRes.division || 'Strategic Enterprise Solutions',
+                      title: adminRes.role || 'VP of Solutions & Enterprise Governance',
+                      resourceId: adminRes.id,
+                      accessScope: 'ALL',
+                      entraUpn: adminRes.email || 'vsolazo@ibs.com.ph',
+                      authProvider: 'SIMULATED',
+                      isActive: true,
+                      lastLoginAt: new Date().toISOString(),
+                    });
+                  }
+                }}
+                className="px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold flex items-center space-x-2 border border-rose-500/50 shadow-xs transition-colors cursor-pointer"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                <span>Switch to Super Admin</span>
+              </button>
+            )}
             <div className="px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center space-x-2">
               <span className="text-slate-400">Team:</span>
               <span className="font-bold text-indigo-300">{resources.length} Resources</span>
@@ -472,7 +542,39 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
               </span>
             </button>
 
-            {/* ROW 2 - ITEM 3: Export Master Data Menu */}
+            {/* ROW 2 - ITEM 3: RBAC & Microsoft Entra Governance */}
+            <button
+              id="btn-admin-open-rbac-governance"
+              type="button"
+              onClick={() => {
+                if (onOpenRbacAdmin) {
+                  onOpenRbacAdmin();
+                } else {
+                  setIsRbacAdminOpen(true);
+                }
+              }}
+              className="group relative flex items-center justify-between min-h-[4.25rem] py-3 px-3.5 bg-white hover:bg-indigo-50/50 border border-slate-200 hover:border-indigo-300 rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer text-left"
+            >
+              <div className="flex items-center min-w-0 mr-2">
+                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 mr-3 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 leading-snug">
+                    RBAC & Entra ID
+                  </div>
+                  <div className="text-xs text-slate-500 font-medium leading-tight mt-0.5">
+                    Roles, Rights & SSO
+                  </div>
+                </div>
+              </div>
+              <span className="px-2 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0 flex items-center space-x-1">
+                <Lock className="w-3 h-3 text-indigo-500" />
+                <span>Security</span>
+              </span>
+            </button>
+
+            {/* ROW 2 - ITEM 4: Export Master Data Menu */}
             <div className="relative">
               <button
                 id="btn-admin-export-data"
@@ -701,6 +803,42 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
           }
         }}
         opportunities={opportunities}
+      />
+
+      {/* RBAC & Entra ID Governance Admin Modal */}
+      <RbacAdminModal
+        isOpen={isRbacAdminOpen}
+        onClose={() => setIsRbacAdminOpen(false)}
+        rbacConfig={rbacConfig}
+        resources={resources}
+        opportunities={opportunities}
+        currentUser={
+          currentUser || {
+            id: 'res-admin-01',
+            name: 'Victor Solazo',
+            email: 'victor.solazo@enterprise-solutions.com',
+            systemRole: 'SUPER_ADMIN',
+            stakeholderLens: 'ALL',
+            department: 'Executive Leadership & Governance',
+            division: 'Global Enterprise Operations',
+            title: 'Managing Director & Enterprise System Administrator',
+            accessScope: 'ALL',
+            entraUpn: 'victor.solazo@ibs.com.ph',
+            authProvider: 'SIMULATED',
+            isActive: true,
+          }
+        }
+        onUpdateRbacConfig={(newCfg) => {
+          if (onUpdateRbacConfig) {
+            onUpdateRbacConfig(newCfg);
+          }
+        }}
+        onUpdateResource={onUpdateResource}
+        onSwitchUser={(user) => {
+          if (onSwitchUser) {
+            onSwitchUser(user);
+          }
+        }}
       />
 
       {/* Reset Confirmation Dialog Modal */}

@@ -24,6 +24,9 @@ import { INITIAL_CLIENTS } from '../data/mockClients';
 import { INITIAL_RESOURCES } from '../data/mockResources';
 import { INITIAL_FORM_SELECTORS } from '../data/mockFormSelectors';
 import { WORKFLOW_STAGES } from '../data/stages';
+import { DEFAULT_RBAC_CONFIG } from '../data/mockRbac';
+import { RbacConfig } from '../types/rbac';
+import { resolveResourceSystemRole, resolveResourceAccessScope } from '../utils/rbac';
 
 // Build Firebase configuration supporting both environment variables (e.g. on Vercel) and config file
 const firebaseConfig = {
@@ -108,6 +111,9 @@ export async function seedInitialFirestoreDataIfEmpty(): Promise<boolean> {
 
       const stagesRef = doc(db, CONFIG_COLLECTION, 'stageDefinitions');
       batch.set(stagesRef, { data: sanitizeForFirestore(WORKFLOW_STAGES) });
+
+      const rbacRef = doc(db, CONFIG_COLLECTION, 'rbacConfig');
+      batch.set(rbacRef, { data: sanitizeForFirestore(DEFAULT_RBAC_CONFIG) });
 
       await batch.commit();
       console.log('✅ Firestore Database seed completed successfully.');
@@ -222,8 +228,41 @@ export function subscribeResources(
     (snapshot) => {
       const list: ResourceMember[] = [];
       snapshot.forEach((docSnap) => {
-        list.push(docSnap.data() as ResourceMember);
+        const raw = docSnap.data() as ResourceMember;
+        const resolvedRole = raw.systemRole || resolveResourceSystemRole(raw);
+        const resolvedScope = resolveResourceAccessScope(resolvedRole, raw.accessScope);
+        const normalized: ResourceMember = {
+          ...raw,
+          systemRole: resolvedRole,
+          accessScope: resolvedScope,
+          entraUpn: raw.entraUpn || raw.email,
+        };
+
+        // If systemRole or accessScope was missing in the Firestore document, backfill it
+        if (!raw.systemRole || !raw.accessScope) {
+          saveResourceToDb(normalized).catch((err) => {
+            console.warn('Silent backfill error for resource:', raw.id, err);
+          });
+        }
+
+        list.push(normalized);
       });
+
+      // Ensure Super Admin (Victor Solazo) and standard demo resources are always present
+      INITIAL_RESOURCES.forEach((initRes) => {
+        const exists = list.some(
+          (r) =>
+            r.id === initRes.id ||
+            (r.email && initRes.email && r.email.toLowerCase() === initRes.email.toLowerCase())
+        );
+        if (!exists) {
+          saveResourceToDb(initRes).catch((err) =>
+            console.warn('Sync initial resource error for:', initRes.id, err)
+          );
+          list.push(initRes);
+        }
+      });
+
       list.sort((a, b) => a.name.localeCompare(b.name));
       onData(list);
     },
@@ -311,6 +350,41 @@ export async function saveStageDefinitionsToDb(stages: StageDefinition[]): Promi
 }
 
 /**
+ * Subscribe to RBAC and Microsoft Entra configuration.
+ */
+export function subscribeRbacConfig(
+  onData: (config: RbacConfig) => void,
+  onError?: (err: Error) => void
+) {
+  const docRef = doc(db, CONFIG_COLLECTION, 'rbacConfig');
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const d = snapshot.data()?.data;
+        if (d && d.rolePermissions) {
+          onData(d as RbacConfig);
+          return;
+        }
+      }
+      onData(DEFAULT_RBAC_CONFIG);
+    },
+    (err) => {
+      console.error('Error subscribing to rbacConfig:', err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+/**
+ * Save RBAC and Microsoft Entra configuration to Firestore.
+ */
+export async function saveRbacConfigToDb(config: RbacConfig): Promise<void> {
+  const docRef = doc(db, CONFIG_COLLECTION, 'rbacConfig');
+  await setDoc(docRef, { data: sanitizeForFirestore(config) }, { merge: true });
+}
+
+/**
  * Resets Firestore database to default demo dataset.
  */
 export async function resetFirestoreToDemoData(): Promise<void> {
@@ -335,6 +409,7 @@ export async function resetFirestoreToDemoData(): Promise<void> {
     });
     batch.set(doc(db, CONFIG_COLLECTION, 'formSelectors'), { data: sanitizeForFirestore(INITIAL_FORM_SELECTORS) });
     batch.set(doc(db, CONFIG_COLLECTION, 'stageDefinitions'), { data: sanitizeForFirestore(WORKFLOW_STAGES) });
+    batch.set(doc(db, CONFIG_COLLECTION, 'rbacConfig'), { data: sanitizeForFirestore(DEFAULT_RBAC_CONFIG) });
 
     await batch.commit();
     console.log('✅ Firestore Database reset to initial demo dataset.');

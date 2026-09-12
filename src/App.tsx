@@ -12,6 +12,11 @@ import { OpportunityDetailModal } from './components/OpportunityDetailModal';
 import { NewOpportunityModal } from './components/NewOpportunityModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
 import { AdminSection } from './components/AdminSection';
+import { UserProfileMenu } from './components/UserProfileMenu';
+import { EntraLoginModal } from './components/EntraLoginModal';
+import { RbacAdminModal } from './components/RbacAdminModal';
+import { UserProfile, RbacConfig } from './types/rbac';
+import { DEFAULT_RBAC_CONFIG, DEFAULT_CURRENT_USER, SIMULATED_PROFILES } from './data/mockRbac';
 import { 
   seedInitialFirestoreDataIfEmpty,
   subscribeOpportunities,
@@ -19,6 +24,7 @@ import {
   subscribeResources,
   subscribeFormSelectors,
   subscribeStageDefinitions,
+  subscribeRbacConfig,
   saveOpportunityToDb,
   deleteOpportunityFromDb,
   saveClientToDb,
@@ -27,6 +33,7 @@ import {
   deleteResourceFromDb,
   saveFormSelectorsToDb,
   saveStageDefinitionsToDb,
+  saveRbacConfigToDb,
   resetFirestoreToDemoData
 } from './lib/firebase';
 
@@ -35,11 +42,43 @@ const CLIENT_STORAGE_KEY = 'e2e_client_directory_v1';
 const RESOURCE_STORAGE_KEY = 'e2e_resource_directory_v1';
 const FORM_SELECTORS_STORAGE_KEY = 'e2e_form_selectors_config_v1';
 const STAGE_SLAS_STORAGE_KEY = 'e2e_workflow_stage_slas_v1';
+const RBAC_CONFIG_STORAGE_KEY = 'e2e_rbac_config_v1';
+const CURRENT_USER_STORAGE_KEY = 'e2e_current_user_v1';
 
 export default function App() {
   // Database status
   const [dbStatus, setDbStatus] = useState<'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'ERROR' | 'OFFLINE'>('CONNECTING');
   const isInitialMount = useRef(true);
+
+  // RBAC & Entra User Profile State
+  const [rbacConfig, setRbacConfig] = useState<RbacConfig>(() => {
+    try {
+      const saved = localStorage.getItem(RBAC_CONFIG_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load stored RBAC config:', e);
+    }
+    return DEFAULT_RBAC_CONFIG;
+  });
+
+  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.email) {
+          return { ...DEFAULT_CURRENT_USER, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load stored current user:', e);
+    }
+    return DEFAULT_CURRENT_USER;
+  });
+
+  const [isEntraLoginOpen, setIsEntraLoginOpen] = useState(false);
+  const [isRbacAdminOpen, setIsRbacAdminOpen] = useState(false);
+  const [onlyAssignedFilter, setOnlyAssignedFilter] = useState(false);
 
   // Target SLAs & Workflow Stages State
   const [stageDefinitions, setStageDefinitions] = useState<StageDefinition[]>(() => {
@@ -122,6 +161,7 @@ export default function App() {
     let unsubscribeResources: (() => void) | undefined;
     let unsubscribeSelectors: (() => void) | undefined;
     let unsubscribeStages: (() => void) | undefined;
+    let unsubscribeRbac: (() => void) | undefined;
 
     const initDb = async () => {
       try {
@@ -191,6 +231,15 @@ export default function App() {
           (err) => console.error('Firestore stages error:', err)
         );
 
+        unsubscribeRbac = subscribeRbacConfig(
+          (dbRbac) => {
+            if (dbRbac && dbRbac.rolePermissions) {
+              setRbacConfig(dbRbac);
+            }
+          },
+          (err) => console.error('Firestore rbac error:', err)
+        );
+
       } catch (err) {
         console.error('Firestore database initialization error:', err);
         setDbStatus('ERROR');
@@ -205,6 +254,7 @@ export default function App() {
       if (unsubscribeResources) unsubscribeResources();
       if (unsubscribeSelectors) unsubscribeSelectors();
       if (unsubscribeStages) unsubscribeStages();
+      if (unsubscribeRbac) unsubscribeRbac();
     };
   }, []);
 
@@ -296,6 +346,31 @@ export default function App() {
     }
   };
 
+  const handleSwitchUser = (user: UserProfile) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
+    } catch (e) {
+      console.error('Failed to save current user:', e);
+    }
+    // Also update stakeholder lens to match the user's role lens
+    if (user.stakeholderLens) {
+      setCurrentRole(user.stakeholderLens);
+    }
+  };
+
+  const handleUpdateRbacConfig = (newConfig: RbacConfig) => {
+    setRbacConfig(newConfig);
+    try {
+      localStorage.setItem(RBAC_CONFIG_STORAGE_KEY, JSON.stringify(newConfig));
+    } catch (e) {
+      console.error('Failed to save RBAC config:', e);
+    }
+    saveRbacConfigToDb(newConfig).catch((err) =>
+      console.error('Failed to persist RBAC config to Firestore:', err)
+    );
+  };
+
   const handleAdvanceStage = async (
     oppId: string,
     nextStage: WorkflowStage,
@@ -304,7 +379,10 @@ export default function App() {
     extraUpdates?: Partial<Opportunity>
   ) => {
     const now = new Date().toISOString();
-    const actorName = currentRole === 'ALL' ? 'Executive Stakeholder' : `${currentRole} Lead`;
+    const actorName = currentUser
+      ? `${currentUser.name} (${currentUser.title || currentUser.systemRole})`
+      : (currentRole === 'ALL' ? 'Executive Stakeholder' : `${currentRole} Lead`);
+    const actorRole = (currentUser?.stakeholderLens === 'ALL' ? 'SALES' : currentUser?.stakeholderLens) || (currentRole === 'ALL' ? 'SALES' : currentRole);
     const isReturn = /return|revert|rejected|send back/i.test(actionName) || /returned to/i.test(comments || '');
 
     const currentOpp =
@@ -323,7 +401,7 @@ export default function App() {
       timestamp: now,
       stage: nextStage,
       actorName,
-      actorRole: currentRole === 'ALL' ? 'SALES' : currentRole,
+      actorRole,
       action: actionName,
       comments: comments || undefined,
       isApproval: !isReturn,
@@ -586,6 +664,18 @@ export default function App() {
         onResetData={handleResetData}
         onExportData={handleExportData}
         dbStatus={dbStatus}
+        userProfileMenu={
+          <UserProfileMenu
+            currentUser={currentUser}
+            resources={resources}
+            rbacConfig={rbacConfig}
+            onlyAssignedFilter={onlyAssignedFilter}
+            onToggleOnlyAssignedFilter={(val) => setOnlyAssignedFilter(val)}
+            onSwitchUser={handleSwitchUser}
+            onOpenEntraLogin={() => setIsEntraLoginOpen(true)}
+            onOpenRbacAdmin={() => setIsRbacAdminOpen(true)}
+          />
+        }
       />
 
       {/* Main Content Area */}
@@ -600,10 +690,14 @@ export default function App() {
           onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
         />
 
-        {/* Opportunity Data Table / Kanban List */}
+        {/* Opportunity Data Table / Kanban List with RBAC */}
         <OpportunityList
           opportunities={opportunities}
           currentRole={currentRole}
+          currentUser={currentUser}
+          rbacConfig={rbacConfig}
+          onlyAssignedFilter={onlyAssignedFilter}
+          onToggleOnlyAssignedFilter={(val) => setOnlyAssignedFilter(val)}
           selectedStageFilter={selectedStageFilter}
           formSelectors={formSelectors}
           stageDefinitions={stageDefinitions}
@@ -611,13 +705,18 @@ export default function App() {
           onOpenNewOpportunity={() => setIsNewModalOpen(true)}
         />
 
-        {/* Admin Section: Resource Directory, Client Directory, Target SLAs, Form Selector Admin, Export, and Reset */}
+        {/* Admin Section: RBAC & Entra Governance, Resource Directory, Client Directory, Target SLAs, Form Selector Admin, Export, and Reset */}
         <AdminSection
           clients={clients}
           resources={resources}
           opportunities={opportunities}
           formSelectors={formSelectors}
           stageDefinitions={stageDefinitions}
+          rbacConfig={rbacConfig}
+          currentUser={currentUser}
+          onOpenRbacAdmin={() => setIsRbacAdminOpen(true)}
+          onUpdateRbacConfig={handleUpdateRbacConfig}
+          onSwitchUser={handleSwitchUser}
           onUpdateStageDefinitions={handleUpdateStageDefinitions}
           onUpdateFormSelectors={handleUpdateFormSelectors}
           onSyncFormOption={handleSyncFormOption}
@@ -651,6 +750,8 @@ export default function App() {
       <OpportunityDetailModal
         opportunity={selectedOpportunity}
         currentRole={currentRole}
+        currentUser={currentUser}
+        rbacConfig={rbacConfig}
         formSelectors={formSelectors}
         clients={clients}
         resources={resources}
@@ -677,6 +778,31 @@ export default function App() {
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         opportunities={opportunities}
+      />
+
+      {/* Microsoft Entra ID SSO Simulation Modal */}
+      <EntraLoginModal
+        isOpen={isEntraLoginOpen}
+        onClose={() => setIsEntraLoginOpen(false)}
+        rbacConfig={rbacConfig}
+        resources={resources}
+        currentUser={currentUser}
+        onLoginSuccess={(user) => {
+          handleSwitchUser(user);
+        }}
+      />
+
+      {/* RBAC & Entra ID Governance Admin Modal */}
+      <RbacAdminModal
+        isOpen={isRbacAdminOpen}
+        onClose={() => setIsRbacAdminOpen(false)}
+        rbacConfig={rbacConfig}
+        resources={resources}
+        opportunities={opportunities}
+        currentUser={currentUser}
+        onUpdateRbacConfig={handleUpdateRbacConfig}
+        onUpdateResource={handleUpdateResource}
+        onSwitchUser={handleSwitchUser}
       />
     </div>
   );

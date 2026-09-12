@@ -29,10 +29,13 @@ import { StageProgressBar } from './StageProgressBar';
 import { StageActionPanel } from './StageActionPanel';
 import { FinanceAuditTrailSection } from './FinanceAuditTrailSection';
 import { formatCurrency, formatDate, formatDateTime, getSlaStatus } from '../utils/formatters';
+import { UserProfile, RbacConfig } from '../types/rbac';
 
 interface OpportunityDetailModalProps {
   opportunity: Opportunity | null;
   currentRole: StakeholderRole;
+  currentUser?: UserProfile;
+  rbacConfig?: RbacConfig;
   formSelectors?: FormSelectorsConfig;
   clients?: ClientOrganization[];
   resources?: ResourceMember[];
@@ -46,6 +49,8 @@ interface OpportunityDetailModalProps {
 export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
   opportunity,
   currentRole,
+  currentUser,
+  rbacConfig,
   formSelectors,
   clients = [],
   resources = [],
@@ -249,6 +254,8 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
               <StageActionPanel
                 opportunity={opportunity}
                 currentRole={currentRole}
+                currentUser={currentUser}
+                rbacConfig={rbacConfig}
                 formSelectors={formSelectors}
                 clients={clients}
                 resources={resources}

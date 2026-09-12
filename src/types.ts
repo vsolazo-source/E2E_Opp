@@ -490,6 +490,8 @@ export interface ClientOrganization {
   updatedAt?: string;
 }
 
+export * from './types/rbac';
+
 export interface ResourceMember {
   id: string;
   name: string;
@@ -501,6 +503,11 @@ export interface ResourceMember {
   remarks?: string;
   createdAt: string;
   updatedAt?: string;
+  // RBAC & Entra governance fields
+  systemRole?: import('./types/rbac').SystemRole;
+  accessScope?: import('./types/rbac').AccessScope;
+  entraUpn?: string;
+  isAdmin?: boolean;
 }
 
 export interface FormOptionItem {

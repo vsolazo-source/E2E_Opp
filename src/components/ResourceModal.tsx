@@ -13,6 +13,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ResourceMember, FormSelectorsConfig, FormSelectorCategoryKey } from '../types';
+import { SystemRole, AccessScope } from '../types/rbac';
+import { resolveResourceSystemRole, resolveResourceAccessScope } from '../utils/rbac';
+import { Shield } from 'lucide-react';
 
 interface ResourceModalProps {
   isOpen: boolean;
@@ -65,6 +68,8 @@ export const ResourceModal: React.FC<ResourceModalProps> = ({
   const [email, setEmail] = useState('');
   const [contactNumber, setContactNumber] = useState('');
   const [remarks, setRemarks] = useState('');
+  const [systemRole, setSystemRole] = useState<SystemRole>('SALES_LEAD');
+  const [accessScope, setAccessScope] = useState<AccessScope>('ASSIGNED_ONLY');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -110,6 +115,9 @@ export const ResourceModal: React.FC<ResourceModalProps> = ({
       setEmail(resourceToEdit.email || '');
       setContactNumber(resourceToEdit.contactNumber || '');
       setRemarks(resourceToEdit.remarks || '');
+      const resolvedRole = resolveResourceSystemRole(resourceToEdit);
+      setSystemRole(resolvedRole);
+      setAccessScope(resolveResourceAccessScope(resolvedRole, resourceToEdit.accessScope));
       setError(null);
     } else {
       setName('');
@@ -125,6 +133,9 @@ export const ResourceModal: React.FC<ResourceModalProps> = ({
       setEmail('');
       setContactNumber('');
       setRemarks('');
+      const initialRole = resolveResourceSystemRole({ role: defaultRole, department: defaultDept });
+      setSystemRole(initialRole);
+      setAccessScope(resolveResourceAccessScope(initialRole));
       setError(null);
     }
   }, [resourceToEdit, isOpen, defaultDept, defaultDivision, defaultRole]);
@@ -258,6 +269,10 @@ export const ResourceModal: React.FC<ResourceModalProps> = ({
       email: trimmedEmail,
       contactNumber: contactNumber.trim() || undefined,
       remarks: remarks.trim() || undefined,
+      systemRole: systemRole,
+      accessScope: accessScope,
+      entraUpn: resourceToEdit?.entraUpn || trimmedEmail,
+      isAdmin: systemRole === 'SUPER_ADMIN',
       createdAt: resourceToEdit ? resourceToEdit.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -496,6 +511,61 @@ export const ResourceModal: React.FC<ResourceModalProps> = ({
                   placeholder="+1 (555) 123-4567"
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none text-xs sm:text-sm"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* RBAC Role & Deal Access Scope */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Shield className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-bold text-slate-800">RBAC Governance & Access Scope</span>
+              </div>
+              <span className="text-[10px] font-semibold text-slate-500">Configures workflow stage permissions</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* System Role */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1 text-xs">
+                  System Role *
+                </label>
+                <select
+                  id="select-resource-system-role"
+                  value={systemRole}
+                  onChange={(e) => {
+                    const newRole = e.target.value as SystemRole;
+                    setSystemRole(newRole);
+                    setAccessScope(resolveResourceAccessScope(newRole));
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-xs text-slate-800"
+                >
+                  <option value="SUPER_ADMIN">👑 Super Administrator</option>
+                  <option value="SALES_LEAD">💼 Sales Lead / Account Executive</option>
+                  <option value="SOLUTION_ARCHITECT">📐 Solution Architect</option>
+                  <option value="CONTRACTS_SPECIALIST">📜 Contracts Specialist</option>
+                  <option value="FINANCE_OFFICER">💰 Finance Officer</option>
+                  <option value="PMO_DELIVERY_LEAD">🚀 PMO Delivery Lead</option>
+                  <option value="AUDITOR_VIEWER">🔍 Auditor / Read-Only</option>
+                </select>
+              </div>
+
+              {/* Access Scope */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1 text-xs">
+                  Opportunity Access Scope *
+                </label>
+                <select
+                  id="select-resource-access-scope"
+                  value={accessScope}
+                  onChange={(e) => setAccessScope(e.target.value as AccessScope)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-xs text-slate-800"
+                >
+                  <option value="ALL">🌐 All Opportunities (Enterprise Wide)</option>
+                  <option value="DEPARTMENT">🏢 My Department / Business Unit Only</option>
+                  <option value="ASSIGNED_ONLY">🎯 Assigned Deals Only</option>
+                </select>
               </div>
             </div>
           </div>
