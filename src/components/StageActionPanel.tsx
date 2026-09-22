@@ -39,7 +39,8 @@ import {
   Calculator,
   AlertTriangle,
   FileSignature,
-  Handshake
+  Handshake,
+  History,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Opportunity, WorkflowStage, StakeholderRole, FormSelectorsConfig, ClientOrganization, ResourceMember } from '../types';
@@ -54,6 +55,7 @@ import { WinNotificationSection } from './WinNotificationSection';
 import { ParallelExecutionSection } from './ParallelExecutionSection';
 import { CwcDeliverySection } from './CwcDeliverySection';
 import { FinanceBillingEndorsementSection } from './FinanceBillingEndorsementSection';
+import { OpportunityAuditTrailView } from './OpportunityAuditTrailView';
 import { UserProfile, RbacConfig } from '../types/rbac';
 import { checkStageAccess } from '../utils/rbac';
 
@@ -131,6 +133,7 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
 
   const [newDeliverableText, setNewDeliverableText] = useState('');
   const [syncToast, setSyncToast] = useState<string | null>(null);
+  const [showStageAuditTrail, setShowStageAuditTrail] = useState(false);
 
   // Revert back to Stage 1 modal state
   const [showReturnToStage1Modal, setShowReturnToStage1Modal] = useState(false);
@@ -6680,6 +6683,45 @@ export const StageActionPanel: React.FC<StageActionPanelProps> = ({
           </p>
         </div>
       )}
+
+      {/* WORKFLOW STAGE AUDIT TRAIL ACCORDION */}
+      <div className="mt-4 pt-3 border-t border-slate-200">
+        <button
+          type="button"
+          onClick={() => setShowStageAuditTrail((prev) => !prev)}
+          className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-700 transition-colors cursor-pointer group"
+        >
+          <div className="flex items-center space-x-2.5">
+            <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg group-hover:bg-indigo-200 transition-colors">
+              <History className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <span className="text-xs font-bold text-slate-900 block">
+                Workflow Stage Audit Trail & Activity Log
+              </span>
+              <span className="text-[11px] text-slate-500">
+                {opportunity.history?.length || 0} recorded stage changes, start date acknowledgments & field updates with action owners
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-semibold text-indigo-600">
+              {showStageAuditTrail ? 'Hide Trail' : 'View Audit Trail'}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showStageAuditTrail ? 'rotate-180' : ''}`} />
+          </div>
+        </button>
+
+        {showStageAuditTrail && (
+          <div className="mt-3 bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <OpportunityAuditTrailView
+              opportunity={opportunity}
+              currentUser={currentUser}
+              filterStage={currentStage}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

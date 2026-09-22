@@ -28,6 +28,7 @@ import { STAGE_MAP, BU_LABELS } from '../data/stages';
 import { StageProgressBar } from './StageProgressBar';
 import { StageActionPanel } from './StageActionPanel';
 import { FinanceAuditTrailSection } from './FinanceAuditTrailSection';
+import { OpportunityAuditTrailView } from './OpportunityAuditTrailView';
 import { formatCurrency, formatDate, formatDateTime, getSlaStatus } from '../utils/formatters';
 import { UserProfile, RbacConfig } from '../types/rbac';
 
@@ -1375,39 +1376,10 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
 
           {/* TAB 6: AUDIT TRAIL */}
           {activeTab === 'AUDIT' && (
-            <div className="space-y-3 text-xs">
-              <h4 className="font-bold text-slate-900 text-sm">Complete Opportunity Lifecycle Audit Log</h4>
-              <div className="space-y-2">
-                {opportunity.history && opportunity.history.length > 0 ? (
-                  opportunity.history.map((entry, idx) => (
-                    <div
-                      key={entry.id || idx}
-                      className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-start space-x-3"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 space-y-0.5">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900">{entry.action}</span>
-                          <span className="text-slate-400 text-[11px]">{formatDateTime(entry.timestamp)}</span>
-                        </div>
-                        <div className="text-slate-500">
-                          Actor: <span className="font-semibold text-slate-700">{entry.actorName}</span> ({entry.actorRole})
-                        </div>
-                        {entry.comments && (
-                          <div className="text-slate-600 italic bg-white p-2 rounded border border-slate-200/60 mt-1">
-                            "{entry.comments}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-500 italic">No historical transitions recorded yet.</p>
-                )}
-              </div>
-            </div>
+            <OpportunityAuditTrailView
+              opportunity={opportunity}
+              currentUser={currentUser}
+            />
           )}
         </div>
 

@@ -38,7 +38,7 @@ import { FinanceAdminModal } from './FinanceAdminModal';
 import { RbacAdminModal } from './RbacAdminModal';
 import { RbacConfig, UserProfile } from '../types/rbac';
 import { DEFAULT_RBAC_CONFIG } from '../data/mockRbac';
-import { WORKFLOW_STAGES } from '../data/stages';
+import { WORKFLOW_STAGES, STAGE_MAP } from '../data/stages';
 import { INITIAL_FINANCE_CONFIG } from '../data/mockFinanceConfig';
 
 interface AdminSectionProps {
@@ -687,6 +687,7 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
         resources={resources}
         formSelectors={formSelectors}
         stageDefinitions={stageDefinitions}
+        currentUser={currentUser}
         onUpdateOpportunity={(opp) => {
           if (onUpdateOpportunity) {
             onUpdateOpportunity(opp);
@@ -700,6 +701,32 @@ export const AdminSection: React.FC<AdminSectionProps> = ({
         onMoveStage={(oppId, targetStage, reason) => {
           if (onMoveOpportunityStage) {
             onMoveOpportunityStage(oppId, targetStage, reason);
+          } else if (onUpdateOpportunity) {
+            const opp = opportunities.find((o) => o.id === oppId);
+            if (opp) {
+              const now = new Date().toISOString();
+              const targetStageDef = STAGE_MAP[targetStage];
+              const targetStageName = targetStageDef?.label || targetStage;
+              onUpdateOpportunity({
+                ...opp,
+                currentStage: targetStage,
+                stageEnteredAt: now,
+                updatedAt: now,
+                history: [
+                  ...(opp.history || []),
+                  {
+                    id: `admin-override-${Date.now()}`,
+                    timestamp: now,
+                    stage: targetStage,
+                    actorName: currentUser ? `${currentUser.name} (${currentUser.title || currentUser.systemRole})` : 'System Administrator',
+                    actorRole: 'ALL',
+                    action: `Admin Stage Override: Moved to ${targetStageName}`,
+                    comments: reason,
+                    isApproval: true,
+                  },
+                ],
+              });
+            }
           }
         }}
         onSelectOpportunity={onSelectOpportunity}

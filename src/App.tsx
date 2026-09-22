@@ -17,6 +17,7 @@ import { EntraLoginModal } from './components/EntraLoginModal';
 import { RbacAdminModal } from './components/RbacAdminModal';
 import { UserProfile, RbacConfig } from './types/rbac';
 import { DEFAULT_RBAC_CONFIG, DEFAULT_CURRENT_USER, SIMULATED_PROFILES } from './data/mockRbac';
+import { applyAuditLogToOpportunity, resolveActionOwner, diffOpportunity } from './utils/auditLogger';
 import { 
   seedInitialFirestoreDataIfEmpty,
   subscribeOpportunities,
@@ -331,9 +332,28 @@ export default function App() {
     return counts;
   }, [opportunities]);
 
-  // Opportunity Handlers with Cloud DB synchronization
-  const handleUpdateOpportunity = async (updated: Opportunity) => {
-    const updatedWithTime: Opportunity = { ...updated, updatedAt: new Date().toISOString() };
+  // Opportunity Handlers with Cloud DB synchronization and full Audit Trail tracking
+  const handleUpdateOpportunity = async (
+    updated: Opportunity,
+    options?: {
+      actionLabel?: string;
+      customReason?: string;
+      actorName?: string;
+      actorRole?: StakeholderRole | string;
+      actionOwner?: string;
+      bypassAudit?: boolean;
+    }
+  ) => {
+    const prevOpp =
+      opportunities.find((o) => o.id === updated.id) ||
+      (selectedOpportunity?.id === updated.id ? selectedOpportunity : null);
+
+    let auditedOpp: Opportunity = updated;
+    if (prevOpp && !options?.bypassAudit) {
+      auditedOpp = applyAuditLogToOpportunity(prevOpp, updated, currentUser, options);
+    }
+
+    const updatedWithTime: Opportunity = { ...auditedOpp, updatedAt: new Date().toISOString() };
     setOpportunities((prev) =>
       prev.map((opp) => (opp.id === updated.id ? updatedWithTime : opp))
     );
@@ -344,6 +364,64 @@ export default function App() {
     } catch (err) {
       console.error('Failed to persist opportunity update to Firestore:', err);
     }
+  };
+
+  const handleDeleteOpportunity = async (oppId: string) => {
+    setOpportunities((prev) => prev.filter((opp) => opp.id !== oppId));
+    setSelectedOpportunity((prev) => (prev?.id === oppId ? null : prev));
+
+    try {
+      await deleteOpportunityFromDb(oppId);
+    } catch (err) {
+      console.error('Failed to delete opportunity from Firestore:', err);
+    }
+  };
+
+  const handleMoveOpportunityStage = async (oppId: string, targetStage: WorkflowStage, reason: string) => {
+    const opp =
+      opportunities.find((o) => o.id === oppId) ||
+      (selectedOpportunity?.id === oppId ? selectedOpportunity : null);
+    if (!opp) return;
+
+    const now = new Date().toISOString();
+    const targetStageDef = STAGE_MAP[targetStage];
+    const targetStageName = targetStageDef?.label || targetStage;
+    const isSameStage = targetStage === opp.currentStage;
+
+    const actorInfo = resolveActionOwner(currentUser, 'ADMIN', currentUser?.name);
+
+    const newHistoryEntry: AuditLogEntry = {
+      id: `admin-override-${Date.now()}`,
+      timestamp: now,
+      stage: targetStage,
+      actorName: actorInfo.name,
+      actorRole: actorInfo.role,
+      actorEmail: actorInfo.email,
+      actorTitle: actorInfo.title,
+      actionOwner: actorInfo.ownerString,
+      action: isSameStage
+        ? `Admin Stage SLA Reset: ${targetStageName}`
+        : `Admin Stage Override: Moved to ${targetStageName}`,
+      comments:
+        reason ||
+        (isSameStage
+          ? `Manual SLA reset at ${targetStageName} by Administrator`
+          : `Admin workflow stage override to ${targetStageName}`),
+      isApproval: true,
+      dealValue: opp.dealValue,
+      currency: opp.currency,
+      changeType: 'ADMIN_OVERRIDE',
+    };
+
+    const updatedRecord: Opportunity = {
+      ...opp,
+      currentStage: targetStage,
+      stageEnteredAt: now,
+      updatedAt: now,
+      history: [...(opp.history || []), newHistoryEntry],
+    };
+
+    await handleUpdateOpportunity(updatedRecord, { bypassAudit: true });
   };
 
   const handleSwitchUser = (user: UserProfile) => {
@@ -379,10 +457,11 @@ export default function App() {
     extraUpdates?: Partial<Opportunity>
   ) => {
     const now = new Date().toISOString();
-    const actorName = currentUser
-      ? `${currentUser.name} (${currentUser.title || currentUser.systemRole})`
-      : (currentRole === 'ALL' ? 'Executive Stakeholder' : `${currentRole} Lead`);
-    const actorRole = (currentUser?.stakeholderLens === 'ALL' ? 'SALES' : currentUser?.stakeholderLens) || (currentRole === 'ALL' ? 'SALES' : currentRole);
+    const actorInfo = resolveActionOwner(
+      currentUser,
+      (currentUser?.stakeholderLens === 'ALL' ? 'SALES' : currentUser?.stakeholderLens) || (currentRole === 'ALL' ? 'SALES' : currentRole),
+      currentUser?.name
+    );
     const isReturn = /return|revert|rejected|send back/i.test(actionName) || /returned to/i.test(comments || '');
 
     const currentOpp =
@@ -400,15 +479,28 @@ export default function App() {
       id: `h-${Date.now()}`,
       timestamp: now,
       stage: nextStage,
-      actorName,
-      actorRole,
+      actorName: actorInfo.name,
+      actorRole: actorInfo.role,
+      actorEmail: actorInfo.email,
+      actorTitle: actorInfo.title,
+      actionOwner: actorInfo.ownerString,
       action: actionName,
       comments: comments || undefined,
       isApproval: !isReturn,
       isReturn,
       dealValue: baseMerged.dealValue,
       currency: baseMerged.currency,
+      changeType: isReturn ? 'RETURN' : 'STAGE_TRANSITION',
     };
+
+    // Check if extraUpdates changed any acknowledged start dates or monitored fields
+    const diff = diffOpportunity(currentOpp, baseMerged);
+    if (diff.ackDateChanges.length > 0) {
+      newHistoryEntry.acknowledgedDateChange = diff.ackDateChanges[0];
+    }
+    if (diff.fieldChanges.length > 0) {
+      newHistoryEntry.fieldChanges = diff.fieldChanges;
+    }
 
     const updatedRecord: Opportunity = {
       ...baseMerged,
@@ -731,6 +823,9 @@ export default function App() {
           onExportData={handleExportData}
           onResetData={handleResetData}
           onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
+          onUpdateOpportunity={handleUpdateOpportunity}
+          onDeleteOpportunity={handleDeleteOpportunity}
+          onMoveOpportunityStage={handleMoveOpportunityStage}
         />
       </main>
 

@@ -6,7 +6,9 @@ import {
   ResourceMember,
   FormSelectorsConfig,
   StageDefinition,
+  AuditLogEntry,
 } from '../types';
+import { UserProfile } from '../types/rbac';
 import {
   X,
   Search,
@@ -38,10 +40,13 @@ import {
   FileCheck,
   Receipt,
   Eye,
+  History,
 } from 'lucide-react';
 import { WORKFLOW_STAGES, STAGE_MAP, BU_LABELS } from '../data/stages';
 import { generateOpportunityCode } from '../lib/opportunityCode';
 import { ensureValidFormSelectors } from '../data/mockFormSelectors';
+import { OpportunityAuditTrailView } from './OpportunityAuditTrailView';
+import { resolveActionOwner } from '../utils/auditLogger';
 
 interface OpportunityAdminModalProps {
   isOpen: boolean;
@@ -51,13 +56,14 @@ interface OpportunityAdminModalProps {
   resources: ResourceMember[];
   formSelectors: FormSelectorsConfig;
   stageDefinitions?: StageDefinition[];
+  currentUser?: UserProfile;
   onUpdateOpportunity: (opp: Opportunity) => void;
   onDeleteOpportunity: (oppId: string) => void;
   onMoveStage?: (oppId: string, targetStage: WorkflowStage, reason: string) => void;
   onSelectOpportunity?: (opp: Opportunity) => void;
 }
 
-type EditTab = 'CORE' | 'TEAM' | 'SOLUTION' | 'LEGAL' | 'FINANCE' | 'DELIVERY';
+type EditTab = 'CORE' | 'TEAM' | 'SOLUTION' | 'LEGAL' | 'FINANCE' | 'DELIVERY' | 'AUDIT';
 
 export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
   isOpen,
@@ -67,6 +73,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
   resources,
   formSelectors,
   stageDefinitions = WORKFLOW_STAGES,
+  currentUser,
   onUpdateOpportunity,
   onDeleteOpportunity,
   onMoveStage,
@@ -180,33 +187,52 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
   // Open Move Stage Modal
   const handleOpenStageMove = (opp: Opportunity) => {
     setStageMoveOpp(opp);
-    setTargetStage(opp.currentStage);
-    setStageMoveReason(`Admin manual workflow override to ${STAGE_MAP[opp.currentStage]?.label || opp.currentStage}`);
+    // Suggest the next stage in sequence if available, or stay on current
+    const currIdx = stageDefinitions.findIndex((s) => s.id === opp.currentStage);
+    const nextIdx = currIdx >= 0 && currIdx < stageDefinitions.length - 1 ? currIdx + 1 : currIdx;
+    const suggestedTarget = stageDefinitions[nextIdx]?.id || opp.currentStage;
+
+    setTargetStage(suggestedTarget);
+    setStageMoveReason(
+      suggestedTarget !== opp.currentStage
+        ? `Admin manual workflow override: moved from ${STAGE_MAP[opp.currentStage]?.label || opp.currentStage} to ${STAGE_MAP[suggestedTarget]?.label || suggestedTarget}`
+        : `Admin manual stage refresh & SLA clock reset for ${STAGE_MAP[opp.currentStage]?.label || opp.currentStage}`
+    );
     setStageMoveError('');
   };
 
   // Execute Move Stage
   const handleExecuteStageMove = () => {
     if (!stageMoveOpp) return;
-    if (targetStage === stageMoveOpp.currentStage) {
-      setStageMoveError('Please select a different target stage than the current stage.');
-      return;
-    }
 
     const now = new Date().toISOString();
     const targetStageDef = STAGE_MAP[targetStage];
-    const targetStageName = targetStageDef?.name || targetStage;
-    const reasonText = stageMoveReason.trim() || `Workflow manually moved to ${targetStageName} by Administrator`;
+    const targetStageName = targetStageDef?.label || targetStage;
+    const isSameStage = targetStage === stageMoveOpp.currentStage;
+    const defaultReason = isSameStage
+      ? `Workflow stage re-entered / SLA reset at ${targetStageName} by Administrator`
+      : `Workflow manually moved to ${targetStageName} by Administrator`;
+    const reasonText = stageMoveReason.trim() || defaultReason;
 
-    const newHistoryEntry = {
+    const actorInfo = resolveActionOwner(currentUser, 'ADMIN', currentUser?.name);
+
+    const newHistoryEntry: AuditLogEntry = {
       id: `admin-override-${Date.now()}`,
       timestamp: now,
       stage: targetStage,
-      actorName: 'System Administrator',
-      actorRole: 'ALL' as const,
-      action: `Admin Stage Override: Moved to ${targetStageName}`,
+      actorName: actorInfo.name,
+      actorRole: actorInfo.role,
+      actorEmail: actorInfo.email,
+      actorTitle: actorInfo.title,
+      actionOwner: actorInfo.ownerString,
+      action: isSameStage
+        ? `Admin Stage SLA Reset: ${targetStageName}`
+        : `Admin Stage Override: Moved to ${targetStageName}`,
       comments: reasonText,
       isApproval: true,
+      dealValue: stageMoveOpp.dealValue,
+      currency: stageMoveOpp.currency,
+      changeType: 'ADMIN_OVERRIDE',
     };
 
     const updated: Opportunity = {
@@ -217,7 +243,14 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
       history: [...(stageMoveOpp.history || []), newHistoryEntry],
     };
 
+    // Primary state & database update
     onUpdateOpportunity(updated);
+
+    // Optional event listener for stage movement
+    if (onMoveStage) {
+      onMoveStage(stageMoveOpp.id, targetStage, reasonText);
+    }
+
     showToast(`Successfully moved ${stageMoveOpp.trackingCode} to "${targetStageName}".`);
     setStageMoveOpp(null);
   };
@@ -586,9 +619,10 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                 </div>
               </div>
               <button
+                id="btn-close-stage-override-modal"
                 type="button"
                 onClick={() => setStageMoveOpp(null)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -597,23 +631,24 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
             {/* Current Stage Indicator */}
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
               <div>
-                <span className="text-slate-400 block text-[10px]">CURRENT STAGE</span>
+                <span className="text-slate-400 block text-[10px] font-bold tracking-wider">CURRENT STAGE</span>
                 <span className="font-bold text-slate-800">
                   {STAGE_MAP[stageMoveOpp.currentStage]?.order}. {STAGE_MAP[stageMoveOpp.currentStage]?.name}
                 </span>
               </div>
-              <span className="text-slate-400 font-mono text-[10px]">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
                 {stageMoveOpp.currentStage}
               </span>
             </div>
 
             {/* Target Stage Picker */}
-            <div className="space-y-1.5 text-xs">
-              <label className="font-bold text-slate-700 flex items-center space-x-1">
+            <div className="space-y-2 text-xs">
+              <label htmlFor="select-target-workflow-stage" className="font-bold text-slate-700 flex items-center space-x-1">
                 <span>Select Target Workflow Stage</span>
                 <span className="text-rose-500">*</span>
               </label>
               <select
+                id="select-target-workflow-stage"
                 value={targetStage}
                 onChange={(e) => {
                   const newStage = e.target.value as WorkflowStage;
@@ -629,18 +664,132 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                   </option>
                 ))}
               </select>
+
+              {/* Quick Jump Shortcuts */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-[10px] font-semibold text-slate-400 self-center mr-1">Quick jump:</span>
+                {(() => {
+                  const currIdx = stageDefinitions.findIndex((s) => s.id === stageMoveOpp.currentStage);
+                  const prevStage = currIdx > 0 ? stageDefinitions[currIdx - 1] : null;
+                  const nextStage = currIdx >= 0 && currIdx < stageDefinitions.length - 1 ? stageDefinitions[currIdx + 1] : null;
+                  return (
+                    <>
+                      {nextStage && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTargetStage(nextStage.id);
+                            setStageMoveReason(`Admin manual advance to Stage ${nextStage.index}: ${nextStage.label}`);
+                            setStageMoveError('');
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            targetStage === nextStage.id
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                          }`}
+                        >
+                          Next: Stg {nextStage.index}
+                        </button>
+                      )}
+                      {prevStage && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTargetStage(prevStage.id);
+                            setStageMoveReason(`Admin manual rollback to Stage ${prevStage.index}: ${prevStage.label}`);
+                            setStageMoveError('');
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            targetStage === prevStage.id
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          Prev: Stg {prevStage.index}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s1 = stageDefinitions[0]?.id || 'OPPORTUNITY_INTAKE';
+                          setTargetStage(s1);
+                          setStageMoveReason(`Admin restart workflow to Stage 1: ${STAGE_MAP[s1]?.label || 'Intake'}`);
+                          setStageMoveError('');
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                          targetStage === (stageDefinitions[0]?.id || 'OPPORTUNITY_INTAKE')
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        Stage 1
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s7 = stageDefinitions[6]?.id || 'CLIENT_BUYOFF_NEGOTIATION';
+                          setTargetStage(s7);
+                          setStageMoveReason(`Admin override to Stage 7: ${STAGE_MAP[s7]?.label || 'Client Buyoff'}`);
+                          setStageMoveError('');
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                          targetStage === (stageDefinitions[6]?.id || 'CLIENT_BUYOFF_NEGOTIATION')
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        Stage 7
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s11 = stageDefinitions[10]?.id || 'WIN_NOTIFICATION';
+                          setTargetStage(s11);
+                          setStageMoveReason(`Admin override to Stage 11: ${STAGE_MAP[s11]?.label || 'Win Notification'}`);
+                          setStageMoveError('');
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                          targetStage === (stageDefinitions[10]?.id || 'WIN_NOTIFICATION')
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        Stage 11 (Win)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const s15 = stageDefinitions[stageDefinitions.length - 1]?.id || 'DEAL_CLOSED';
+                          setTargetStage(s15);
+                          setStageMoveReason(`Admin override to Stage 15: ${STAGE_MAP[s15]?.label || 'Closed'}`);
+                          setStageMoveError('');
+                        }}
+                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                          targetStage === (stageDefinitions[stageDefinitions.length - 1]?.id || 'DEAL_CLOSED')
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                      >
+                        Stage 15 (Closed)
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+
               <span className="text-[10px] text-slate-500 block">
-                Moving stages will instantly update the deal's active workflow step and record a high-priority admin audit entry.
+                Moving stages will immediately update the deal's active workflow step and record an audit log entry in the timeline.
               </span>
             </div>
 
             {/* Reason / Audit Note */}
             <div className="space-y-1.5 text-xs">
-              <label className="font-bold text-slate-700 flex items-center space-x-1">
+              <label htmlFor="textarea-stage-override-reason" className="font-bold text-slate-700 flex items-center space-x-1">
                 <span>Reason for Stage Override / Audit Notes</span>
                 <span className="text-rose-500">*</span>
               </label>
               <textarea
+                id="textarea-stage-override-reason"
                 rows={3}
                 value={stageMoveReason}
                 onChange={(e) => setStageMoveReason(e.target.value)}
@@ -659,6 +808,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
             {/* Actions */}
             <div className="flex items-center justify-end space-x-3 pt-2 border-t border-slate-200">
               <button
+                id="btn-cancel-stage-override"
                 type="button"
                 onClick={() => setStageMoveOpp(null)}
                 className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-300 transition-colors cursor-pointer"
@@ -666,6 +816,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                 Cancel
               </button>
               <button
+                id="btn-apply-stage-override"
                 type="button"
                 onClick={handleExecuteStageMove}
                 className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
@@ -718,6 +869,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                 { key: 'LEGAL', label: '4. Legal & Contract', icon: Briefcase },
                 { key: 'FINANCE', label: '5. Finance & Margins', icon: Calculator },
                 { key: 'DELIVERY', label: '6. PMO, DocuSign & Billing', icon: Send },
+                { key: 'AUDIT', label: '7. Audit Trail & Stage History', icon: History },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeEditTab === tab.key;
@@ -1426,6 +1578,13 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
                       </select>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* TAB 7: AUDIT TRAIL & STAGE HISTORY */}
+              {activeEditTab === 'AUDIT' && (
+                <div className="p-4 sm:p-5">
+                  <OpportunityAuditTrailView opportunity={editingOpp} currentUser={currentUser} />
                 </div>
               )}
             </div>

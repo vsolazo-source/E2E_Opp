@@ -63,6 +63,7 @@ export interface SolutionProposal {
   proposalValidityDays?: number;
   stage2TriggerDate?: string;
   torReceivedDate?: string;
+  acknowledgedStartDate?: string;
   slaTriggerToTorDays?: number;
   solutionArchitect?: string;
   buOwner?: string;
@@ -397,12 +398,31 @@ export interface FinanceAuditEntry {
   isReturn?: boolean;
 }
 
+export interface FieldChangeEntry {
+  field: string;
+  fieldLabel: string;
+  oldValue: any;
+  newValue: any;
+}
+
+export interface AcknowledgedDateChangeEntry {
+  stage: WorkflowStage;
+  stageName: string;
+  field: string;
+  fieldLabel: string;
+  oldDate?: string;
+  newDate: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   timestamp: string;
   stage: WorkflowStage;
   actorName: string;
-  actorRole: StakeholderRole;
+  actorRole: StakeholderRole | string;
+  actorEmail?: string;
+  actorTitle?: string;
+  actionOwner?: string; // e.g. "Victor Solazo (vsolazo@ibs.com.ph - Super Admin)"
   action: string;
   comments?: string;
   isApproval?: boolean;
@@ -413,6 +433,9 @@ export interface AuditLogEntry {
   marginPercent?: number;
   currency?: string;
   variance?: number;
+  fieldChanges?: FieldChangeEntry[];
+  acknowledgedDateChange?: AcknowledgedDateChangeEntry;
+  changeType?: 'STAGE_TRANSITION' | 'ACKNOWLEDGE_DATE' | 'FIELD_UPDATE' | 'APPROVAL' | 'RETURN' | 'ADMIN_OVERRIDE';
 }
 
 export interface Opportunity {
