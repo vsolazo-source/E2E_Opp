@@ -9,7 +9,6 @@ import {
   ChevronRight, 
   ArrowRight,
   ShieldCheck,
-  Zap,
   Layers,
   FileText,
   RefreshCw,
@@ -114,65 +113,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
     },
   ];
 
-  // Role Banner Info
-  const roleGuidance: Record<StakeholderRole, { title: string; desc: string; focusStage: string }> = {
-    ALL: {
-      title: 'Executive Real-Time Pipeline & Governance',
-      desc: '360° visibility across all 15 lifecycle stages from Sales Intake to Finance billing & project closeout.',
-      focusStage: '15 Active Lifecycle Stages',
-    },
-    SALES: {
-      title: 'Sales Executive Workbench',
-      desc: 'Track intake opportunities, review architect solution proposals, and lead client commercial negotiations.',
-      focusStage: 'Focus: Stages 1, 3, 7, 10 (DocuSign coordination)',
-    },
-    ARCHITECTURE: {
-      title: 'Solution Architecture & BU Head Console',
-      desc: 'Design technical blueprints, scope deliverables, estimate costs, and trigger optional 3rd-party Vendor PR/PO procurement.',
-      focusStage: 'Focus: Stage 2 (Solution Design & Vendor PR/PO)',
-    },
-    CONTRACTS: {
-      title: 'Contracts, Legal & Compliance Queue',
-      desc: 'Review proposals, endorse to Sales, convert accepted deals into MSA/SOW contracts, dispatch DocuSign envelopes, and release WIN announcement emails.',
-      focusStage: 'Focus: Stages 4, 6, 8, 10, 11 (WIN Broadcast)',
-    },
-    FINANCE: {
-      title: 'Finance & Deal Desk Command Center',
-      desc: 'Evaluate gross margins, approve contract TCV, allocate Budget & Contract codes, and endorse CWC milestone billings.',
-      focusStage: 'Focus: Stages 5, 9, 12 (Budget Codes), 14 (Billing)',
-    },
-    PMO: {
-      title: 'PMO & Project Delivery Execution Hub',
-      desc: 'Kick off delivery milestones upon contract win, manage sprint health, and issue Certificate of Work Completion (CWC).',
-      focusStage: 'Focus: Stages 12 (Parallel Delivery) & 13 (CWC Signoff)',
-    },
-  };
-
   return (
     <div className="space-y-6">
-      {/* Role Context Notification */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <span className="p-1.5 rounded-lg bg-indigo-500/20 border border-indigo-400/30 text-indigo-300">
-              <Zap className="w-4 h-4" />
-            </span>
-            <h2 className="text-base font-bold text-white">
-              {roleGuidance[currentRole].title}
-            </h2>
-          </div>
-          <p className="text-xs text-slate-300 max-w-5xl">
-            {roleGuidance[currentRole].desc}
-          </p>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <span className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-semibold text-indigo-200 border border-white/10">
-            {roleGuidance[currentRole].focusStage}
-          </span>
-        </div>
-      </div>
-
       {/* VIEW CHOICES: OPPORTUNITY VIEW VS CONTRACTS VIEW - Positioned above Pipeline Value...SLA Bottlenecks */}
       <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center flex-wrap gap-1.5 p-1 bg-slate-100/90 rounded-xl">
