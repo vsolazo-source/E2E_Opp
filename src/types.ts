@@ -494,6 +494,10 @@ export interface Opportunity {
   cwcRecord: CwcRecord;
   billingRecord: BillingRecord;
   
+  // Contracts & Renewals Governance
+  contractRenewalRecord?: ContractRenewalRecord;
+  renewalHistory?: ContractRenewalRecord[];
+
   // History & Audit
   history: AuditLogEntry[];
   financeAuditTrail?: FinanceAuditEntry[];
@@ -591,4 +595,96 @@ export interface FinanceAdminConfig {
   marginBenchmarkPercent: number;
   strictThresholdEnforcement: boolean;
 }
+
+// -------------------------------------------------------------
+// CONTRACTS & RENEWALS WORKFLOW SPECIFICATIONS
+// -------------------------------------------------------------
+
+export type RenewalStage =
+  | 'NOT_STARTED'
+  | 'RENEWAL_TRIGGERED'      // Stage R1: Contracts team triggered renewal; assigned to BU Owner
+  | 'BU_SCOPE_UPDATED'       // Stage R2: BU Owner updated scope, cost, uploaded files; submitted to Contracts
+  | 'CONTRACTS_REVIEW'       // Stage R3: Contracts team reviewed; decision to endorse to Finance or skip
+  | 'FINANCE_APPROVAL'       // Stage R4: Finance approval (if threshold required)
+  | 'SALES_CLIENT_SIGNING'   // Stage R5: Sales client release & signed renewal contract + PO uploaded
+  | 'CCM_TAGGING'            // Stage R6: CCM tagged new contract dates & signed amount
+  | 'RENEWAL_ACTIVATED';     // Completed renewal cycle
+
+export interface RenewalStageEntry {
+  id: string;
+  stage: RenewalStage;
+  stageLabel: string;
+  timestamp: string;
+  actorName: string;
+  actorRole: StakeholderRole | 'CCM' | string;
+  action: string;
+  comments?: string;
+  dataSnapshot?: Record<string, any>;
+}
+
+export interface ContractRenewalRecord {
+  renewalId: string;
+  cycleNumber: number; // e.g. Cycle 1, Cycle 2
+  currentRenewalStage: RenewalStage;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  initiatedAt: string;
+  initiatedBy: string;
+  renewalReason: string; // e.g. "Additional Services & Cost Adjustment", "Scope & Clause Revisions", "Standard Annual Renewal"
+  updateScopeNotes?: string;
+  targetRenewalDate?: string;
+
+  // Stage R2: BU Scope Update
+  assignedBuOwner?: string;
+  originalContractDownloadLink?: string;
+  originalContractFileName?: string;
+  updatedScopeDocLink?: string;
+  updatedScopeDocFileName?: string;
+  additionalServicesSummary?: string;
+  clauseModifications?: string;
+  proposedRenewalAmount?: number;
+  proposedRenewalCurrency?: string;
+  costVariancePercent?: number; // Variance against previous TCV
+  buSubmittedAt?: string;
+  buSubmittedBy?: string;
+  buNotes?: string;
+
+  // Stage R3: Contracts Review & Finance Endorsement Decision
+  contractsReviewer?: string;
+  contractsReviewedAt?: string;
+  contractsReviewNotes?: string;
+  financeApprovalRequired: boolean;
+  financeThresholdReason?: string; // Reason e.g. "Cost increase > 10% threshold requires Finance sign-off" or "Within approved limits - Finance skipped"
+
+  // Stage R4: Finance Approval (if required)
+  financeApprover?: string;
+  financeApprovedAt?: string;
+  financeApprovalNotes?: string;
+  approvedRenewalAmount?: number;
+  financeApproved?: boolean;
+
+  // Stage R5: Sales Client Release & Signature
+  salesLeadAssigned?: string;
+  clientReleasedAt?: string;
+  signedRenewalContractLink?: string;
+  signedRenewalContractFileName?: string;
+  clientPoNumber?: string;
+  clientPoLink?: string;
+  clientPoFileName?: string;
+  clientSignedDate?: string;
+  salesSubmittedAt?: string;
+  salesNotes?: string;
+
+  // Stage R6: CCM Tagging & Activation
+  ccmOfficer?: string;
+  taggedNewStartDate?: string;
+  taggedNewEndDate?: string;
+  taggedSignedAmount?: number;
+  taggedCurrency?: string;
+  ccmTaggedAt?: string;
+  ccmNotes?: string;
+
+  // Audit trail for renewal stages
+  stageHistory: RenewalStageEntry[];
+}
+
 

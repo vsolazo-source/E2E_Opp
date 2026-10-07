@@ -275,7 +275,7 @@ export const OpportunityAdminModal: React.FC<OpportunityAdminModalProps> = ({
       )}
 
       {/* Main Admin Modal Container */}
-      <div className="bg-white w-full max-w-7xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white w-full max-w-7xl 2xl:max-w-[96vw] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] 2xl:max-h-[95vh] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">

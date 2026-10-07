@@ -479,7 +479,7 @@ export const FormSelectorAdminModal: React.FC<FormSelectorAdminModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white w-full max-w-6xl h-[92vh] max-h-[860px] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white w-full max-w-6xl 2xl:max-w-7xl 3xl:max-w-[94vw] h-[92vh] max-h-[860px] 2xl:max-h-[92vh] rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Top Header */}
         <div className="p-4 sm:px-6 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">

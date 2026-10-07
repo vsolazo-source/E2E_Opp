@@ -8,6 +8,7 @@ import { STAGE_MAP, WORKFLOW_STAGES, ensureValid15Stages } from './data/stages';
 import { Navbar } from './components/Navbar';
 import { StakeholderDashboard } from './components/StakeholderDashboard';
 import { OpportunityList } from './components/OpportunityList';
+import { ContractsView } from './components/ContractsView';
 import { OpportunityDetailModal } from './components/OpportunityDetailModal';
 import { NewOpportunityModal } from './components/NewOpportunityModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
@@ -80,6 +81,7 @@ export default function App() {
   const [isEntraLoginOpen, setIsEntraLoginOpen] = useState(false);
   const [isRbacAdminOpen, setIsRbacAdminOpen] = useState(false);
   const [onlyAssignedFilter, setOnlyAssignedFilter] = useState(false);
+  const [mainViewChoice, setMainViewChoice] = useState<'OPPORTUNITIES' | 'CONTRACTS'>('OPPORTUNITIES');
 
   // Target SLAs & Workflow Stages State
   const [stageDefinitions, setStageDefinitions] = useState<StageDefinition[]>(() => {
@@ -770,32 +772,48 @@ export default function App() {
         }
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      {/* Main Content Area - Expands to almost the size of the screen on larger displays while maintaining responsive padding */}
+      <main className="flex-1 w-full max-w-full 2xl:max-w-[98vw] 3xl:max-w-[99vw] mx-auto px-3 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 space-y-8">
         {/* Real-time Stakeholder Dashboard & KPI Funnel */}
         <StakeholderDashboard
           opportunities={opportunities}
           currentRole={currentRole}
           selectedStageFilter={selectedStageFilter}
           stageDefinitions={stageDefinitions}
+          mainViewChoice={mainViewChoice}
+          onViewChoiceChange={(choice) => setMainViewChoice(choice)}
           onSelectStageFilter={(stage) => setSelectedStageFilter(stage)}
           onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
         />
 
-        {/* Opportunity Data Table / Kanban List with RBAC */}
-        <OpportunityList
-          opportunities={opportunities}
-          currentRole={currentRole}
-          currentUser={currentUser}
-          rbacConfig={rbacConfig}
-          onlyAssignedFilter={onlyAssignedFilter}
-          onToggleOnlyAssignedFilter={(val) => setOnlyAssignedFilter(val)}
-          selectedStageFilter={selectedStageFilter}
-          formSelectors={formSelectors}
-          stageDefinitions={stageDefinitions}
-          onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
-          onOpenNewOpportunity={() => setIsNewModalOpen(true)}
-        />
+        {/* Opportunity Data Table / Kanban List with RBAC (Only in Opportunity View) */}
+        {mainViewChoice === 'OPPORTUNITIES' && (
+          <OpportunityList
+            opportunities={opportunities}
+            currentRole={currentRole}
+            currentUser={currentUser}
+            rbacConfig={rbacConfig}
+            onlyAssignedFilter={onlyAssignedFilter}
+            onToggleOnlyAssignedFilter={(val) => setOnlyAssignedFilter(val)}
+            selectedStageFilter={selectedStageFilter}
+            formSelectors={formSelectors}
+            stageDefinitions={stageDefinitions}
+            onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
+            onOpenNewOpportunity={() => setIsNewModalOpen(true)}
+          />
+        )}
+
+        {/* Contracts & Renewals View (When Contracts View is selected) */}
+        {mainViewChoice === 'CONTRACTS' && (
+          <ContractsView
+            opportunities={opportunities}
+            currentRole={currentRole}
+            currentUser={currentUser}
+            formSelectors={formSelectors}
+            onSelectOpportunity={(opp) => setSelectedOpportunity(opp)}
+            onUpdateOpportunity={handleUpdateOpportunity}
+          />
+        )}
 
         {/* Admin Section: RBAC & Entra Governance, Resource Directory, Client Directory, Target SLAs, Form Selector Admin, Export, and Reset */}
         <AdminSection
@@ -831,7 +849,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 mt-12 py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="w-full max-w-full 2xl:max-w-[98vw] 3xl:max-w-[99vw] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
             End-to-End Enterprise Opportunity Tracker • 15 Lifecycle Stages & Organization Directory
           </div>

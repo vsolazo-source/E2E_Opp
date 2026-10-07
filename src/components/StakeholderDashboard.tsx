@@ -9,7 +9,11 @@ import {
   ChevronRight, 
   ArrowRight,
   ShieldCheck,
-  Zap
+  Zap,
+  Layers,
+  FileText,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { Opportunity, StakeholderRole, WorkflowStage, StageDefinition } from '../types';
 import { WORKFLOW_STAGES, STAGE_MAP, ensureValid15Stages } from '../data/stages';
@@ -20,6 +24,8 @@ interface StakeholderDashboardProps {
   currentRole: StakeholderRole;
   selectedStageFilter: WorkflowStage | 'ALL';
   stageDefinitions?: StageDefinition[];
+  mainViewChoice?: 'OPPORTUNITIES' | 'CONTRACTS';
+  onViewChoiceChange?: (choice: 'OPPORTUNITIES' | 'CONTRACTS') => void;
   onSelectStageFilter: (stage: WorkflowStage | 'ALL') => void;
   onSelectOpportunity: (opp: Opportunity) => void;
 }
@@ -29,6 +35,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
   currentRole,
   selectedStageFilter,
   stageDefinitions = WORKFLOW_STAGES,
+  mainViewChoice = 'OPPORTUNITIES',
+  onViewChoiceChange,
   onSelectStageFilter,
   onSelectOpportunity,
 }) => {
@@ -51,6 +59,22 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
   
   // Overdue SLA Deals
   const overdueDeals = opportunities.filter((opp) => getSlaStatus(opp, stageDefinitions).isOverdue);
+
+  // Contracts count with assigned Contract Code (Finance Stage 12+)
+  const contractsCount = opportunities.filter((opp) => 
+    Boolean(opp.parallelFinance?.contractCode || (opp.contractDetails?.contractNumber && ['PARALLEL_EXECUTION', 'CWC_DELIVERY', 'FINANCE_BILLING_ENDORSEMENT', 'DEAL_CLOSED'].includes(opp.currentStage)))
+  ).length;
+
+  const nowMs = new Date().getTime();
+  const contractAlertsCount = opportunities.filter((opp) => {
+    const hasContract = Boolean(opp.parallelFinance?.contractCode || opp.contractDetails?.contractNumber);
+    if (!hasContract) return false;
+    const endDate = opp.parallelFinance?.contractEndDate;
+    if (!endDate) return false;
+    const endMs = new Date(endDate).getTime();
+    const days = Math.ceil((endMs - nowMs) / (1000 * 60 * 60 * 24));
+    return days <= 60;
+  }).length;
 
   const activeStages = ensureValid15Stages(stageDefinitions);
 
@@ -137,7 +161,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
               {roleGuidance[currentRole].title}
             </h2>
           </div>
-          <p className="text-xs text-slate-300 max-w-3xl">
+          <p className="text-xs text-slate-300 max-w-5xl">
             {roleGuidance[currentRole].desc}
           </p>
         </div>
@@ -149,99 +173,157 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
         </div>
       </div>
 
-      {/* Real-Time KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        {/* Total Pipeline */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">Pipeline Value</span>
-            <TrendingUp className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-lg font-bold text-slate-900 truncate">
-            {formatCurrency(totalPipelineValue, 'PHP')}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            {opportunities.length} Active Deals
-          </div>
+      {/* VIEW CHOICES: OPPORTUNITY VIEW VS CONTRACTS VIEW - Positioned above Pipeline Value...SLA Bottlenecks */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-2 sm:p-2.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center flex-wrap gap-1.5 p-1 bg-slate-100/90 rounded-xl">
+          <button
+            type="button"
+            id="btn-view-choice-opportunities"
+            onClick={() => onViewChoiceChange?.('OPPORTUNITIES')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              mainViewChoice === 'OPPORTUNITIES'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Opportunity Pipeline View</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              mainViewChoice === 'OPPORTUNITIES' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {opportunities.length} Deals
+            </span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-view-choice-contracts"
+            onClick={() => onViewChoiceChange?.('CONTRACTS')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              mainViewChoice === 'CONTRACTS'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Contracts & Renewals View</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              mainViewChoice === 'CONTRACTS' ? 'bg-white/25 text-white' : 'bg-indigo-100 text-indigo-800'
+            }`}>
+              {contractsCount} Contracts
+            </span>
+            {contractAlertsCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-500 text-white animate-pulse">
+                {contractAlertsCount} Alerts
+              </span>
+            )}
+          </button>
         </div>
 
-        {/* Won / Contracted TCV */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">Contracted TCV</span>
-            <Award className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-lg font-bold text-emerald-700 truncate">
-            {formatCurrency(contractedTcv, 'PHP')}
-          </div>
-          <div className="text-[11px] text-emerald-600 font-medium mt-1">
-            {contractedAndWonDeals.length} Won & In Delivery
-          </div>
-        </div>
-
-        {/* Billed Revenue */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">Billed Revenue</span>
-            <DollarSign className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-lg font-bold text-slate-900 truncate">
-            {formatCurrency(billedRevenue, 'PHP')}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            Via Endorsed CWCs
-          </div>
-        </div>
-
-        {/* In DocuSign */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">DocuSign Queue</span>
-            <FileSignature className="w-4 h-4 text-rose-500" />
-          </div>
-          <div className="text-lg font-bold text-slate-900">
-            {inDocuSignCount} Deals
-          </div>
-          <div className="text-[11px] text-rose-600 font-medium mt-1">
-            Awaiting Signatures
-          </div>
-        </div>
-
-        {/* PMO Active */}
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">PMO Delivery</span>
-            <ShieldCheck className="w-4 h-4 text-cyan-500" />
-          </div>
-          <div className="text-lg font-bold text-slate-900">
-            {opportunities.filter((o) => o.currentStage === 'PARALLEL_EXECUTION' || o.currentStage === 'CWC_DELIVERY').length} Projects
-          </div>
-          <div className="text-[11px] text-cyan-700 font-medium mt-1">
-            Active Milestone Work
-          </div>
-        </div>
-
-        {/* SLA Alerts */}
-        <div className={`rounded-xl p-4 border shadow-2xs ${
-          overdueDeals.length > 0
-            ? 'bg-amber-50/70 border-amber-300'
-            : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">SLA Bottlenecks</span>
-            <AlertTriangle className={`w-4 h-4 ${overdueDeals.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
-          </div>
-          <div className={`text-lg font-bold ${overdueDeals.length > 0 ? 'text-amber-900' : 'text-slate-900'}`}>
-            {overdueDeals.length} Overdue
-          </div>
-          <div className="text-[11px] text-amber-700 font-medium mt-1">
-            {overdueDeals.length > 0 ? 'Requires Escalation' : 'All SLAs on Target'}
-          </div>
+        <div className="text-xs text-slate-500 px-2 flex items-center gap-1.5">
+          {mainViewChoice === 'OPPORTUNITIES' ? (
+            <span>Complete 15-Step Sales Intake → PMO Delivery & Invoicing Flow</span>
+          ) : (
+            <span>Stage 12 Finance Contract Codes • Recurring Renewals Workflow • Non-Recurring Tracking</span>
+          )}
         </div>
       </div>
 
-      {/* Interactive 15-Stage End-to-End Visual Workflow Pipeline */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+      {/* OPPORTUNITY VIEW CONTENT: KPI CARDS, 15-STAGE FUNNEL & BOTTLENECK BAR */}
+      {mainViewChoice === 'OPPORTUNITIES' && (
+        <>
+          {/* Real-Time KPI Cards (Pipeline Value ... SLA Bottlenecks inside Opportunity Pipeline View) */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 2xl:gap-5">
+            {/* Total Pipeline */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">Pipeline Value</span>
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+              </div>
+              <div className="text-lg font-bold text-slate-900 truncate">
+                {formatCurrency(totalPipelineValue, 'PHP')}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">
+                {opportunities.length} Active Deals
+              </div>
+            </div>
+
+            {/* Won / Contracted TCV */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">Contracted TCV</span>
+                <Award className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="text-lg font-bold text-emerald-700 truncate">
+                {formatCurrency(contractedTcv, 'PHP')}
+              </div>
+              <div className="text-[11px] text-emerald-600 font-medium mt-1">
+                {contractedAndWonDeals.length} Won & In Delivery
+              </div>
+            </div>
+
+            {/* Billed Revenue */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">Billed Revenue</span>
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+              </div>
+              <div className="text-lg font-bold text-slate-900 truncate">
+                {formatCurrency(billedRevenue, 'PHP')}
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">
+                Via Endorsed CWCs
+              </div>
+            </div>
+
+            {/* In DocuSign */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">DocuSign Queue</span>
+                <FileSignature className="w-4 h-4 text-rose-500" />
+              </div>
+              <div className="text-lg font-bold text-slate-900">
+                {inDocuSignCount} Deals
+              </div>
+              <div className="text-[11px] text-rose-600 font-medium mt-1">
+                Awaiting Signatures
+              </div>
+            </div>
+
+            {/* PMO Active */}
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-2xs">
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">PMO Delivery</span>
+                <ShieldCheck className="w-4 h-4 text-cyan-500" />
+              </div>
+              <div className="text-lg font-bold text-slate-900">
+                {opportunities.filter((o) => o.currentStage === 'PARALLEL_EXECUTION' || o.currentStage === 'CWC_DELIVERY').length} Projects
+              </div>
+              <div className="text-[11px] text-cyan-700 font-medium mt-1">
+                Active Milestone Work
+              </div>
+            </div>
+
+            {/* SLA Alerts */}
+            <div className={`rounded-xl p-4 border shadow-2xs ${
+              overdueDeals.length > 0
+                ? 'bg-amber-50/70 border-amber-300'
+                : 'bg-white border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">SLA Bottlenecks</span>
+                <AlertTriangle className={`w-4 h-4 ${overdueDeals.length > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+              </div>
+              <div className={`text-lg font-bold ${overdueDeals.length > 0 ? 'text-amber-900' : 'text-slate-900'}`}>
+                {overdueDeals.length} Overdue
+              </div>
+              <div className="text-[11px] text-amber-700 font-medium mt-1">
+                {overdueDeals.length > 0 ? 'Requires Escalation' : 'All SLAs on Target'}
+              </div>
+            </div>
+          </div>
+          {/* Interactive 15-Stage End-to-End Visual Workflow Pipeline */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center">
@@ -268,7 +350,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
         </div>
 
         {/* 4 Process Groups Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 2xl:gap-6">
           {stageGroups.map((group, groupIdx) => (
             <div
               key={groupIdx}
@@ -372,6 +454,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

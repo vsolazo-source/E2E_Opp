@@ -258,7 +258,7 @@ export const ClientDirectoryModal: React.FC<ClientDirectoryModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
       <div
         id="client-directory-modal"
-        className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white w-full max-w-6xl 2xl:max-w-7xl 3xl:max-w-[94vw] rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] 2xl:max-h-[95vh] animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Modal Top Header Banner */}
         <div className="p-5 sm:p-6 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white border-b border-slate-800 flex-shrink-0">

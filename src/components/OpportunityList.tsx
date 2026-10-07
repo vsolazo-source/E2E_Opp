@@ -9,6 +9,7 @@ import {
   TrendingUp, 
   CheckCircle2, 
   AlertCircle,
+  AlertTriangle,
   Briefcase,
   Layers,
   FileText,
@@ -183,6 +184,15 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
     setSlaFilterOnly(false);
   };
 
+  // Pre-calculate count of opportunities exceeding their defined stage SLA duration
+  const totalOverdueCount = useMemo(() => {
+    return opportunities.filter((o) => getSlaStatus(o, stageDefinitions).isOverdue).length;
+  }, [opportunities, stageDefinitions]);
+
+  const filteredOverdueCount = useMemo(() => {
+    return filteredOpportunities.filter((o) => getSlaStatus(o, stageDefinitions).isOverdue).length;
+  }, [filteredOpportunities, stageDefinitions]);
+
   // Kanban Columns (Grouped by 4 Enterprise Phases)
   const kanbanPhases = [
     {
@@ -217,12 +227,50 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Visual SLA Duration Warning Alert Banner (When any opportunity has exceeded defined stage SLA) */}
+      {totalOverdueCount > 0 && (
+        <div className="bg-gradient-to-r from-red-50 via-rose-50 to-amber-50 border border-red-200/90 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-red-100 border border-red-200 text-red-700 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-red-600 animate-pulse" />
+            </div>
+            <div>
+              <div className="text-xs sm:text-sm font-bold text-red-900 flex items-center gap-2">
+                <span>{totalOverdueCount} {totalOverdueCount === 1 ? 'Opportunity has' : 'Opportunities have'} exceeded defined stage SLA duration</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-red-600 text-white uppercase tracking-wider">
+                  SLA Breached
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-red-700 mt-0.5">
+                Target SLA durations are evaluated dynamically using current stage definitions. Overdue opportunities are highlighted in red below for immediate action.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <button
+              type="button"
+              id="btn-toggle-sla-banner"
+              onClick={() => setSlaFilterOnly(!slaFilterOnly)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer ${
+                slaFilterOnly
+                  ? 'bg-red-700 text-white hover:bg-red-800'
+                  : 'bg-white text-red-700 border border-red-300 hover:bg-red-100/60'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              {slaFilterOnly ? 'Show All Opportunities' : `Filter ${totalOverdueCount} Overdue Deals`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Control Bar: Search & Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           
-          {/* Search Input */}
-          <div className="relative flex-1 max-w-lg">
+          {/* Search Input - Expands responsively on larger screens */}
+          <div className="relative flex-1 max-w-md xl:max-w-xl 2xl:max-w-3xl">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
@@ -318,14 +366,23 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
               type="button"
               id="btn-filter-sla-overdue"
               onClick={() => setSlaFilterOnly(!slaFilterOnly)}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center ${
+              className={`px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
                 slaFilterOnly
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-red-600 text-white shadow-xs'
+                  : totalOverdueCount > 0
+                  ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
                   : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
               }`}
             >
-              <Clock className="w-3.5 h-3.5 mr-1" />
-              SLA Overdue Only
+              <Clock className="w-3.5 h-3.5" />
+              <span>SLA Overdue Only</span>
+              {totalOverdueCount > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  slaFilterOnly ? 'bg-white text-red-700' : 'bg-red-600 text-white'
+                }`}>
+                  {totalOverdueCount}
+                </span>
+              )}
             </button>
 
             {/* RBAC: My Assigned Deals Only Toggle */}
@@ -467,18 +524,23 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     const stageDef = STAGE_MAP[opp.currentStage];
                     const sla = getSlaStatus(opp, stageDefinitions);
                     const isRelevantToRole = currentRole !== 'ALL' && stageDef?.primaryActor === currentRole;
+                    const isOverdue = sla.isOverdue;
 
                     return (
                       <tr
                         key={opp.id}
                         onClick={() => onSelectOpportunity(opp)}
                         className={`hover:bg-slate-50/90 cursor-pointer transition-colors ${
-                          isRelevantToRole ? 'bg-amber-50/30' : ''
+                          isOverdue
+                            ? 'border-l-4 border-l-red-500 bg-red-50/30 hover:bg-red-50/60'
+                            : isRelevantToRole
+                            ? 'bg-amber-50/30'
+                            : ''
                         }`}
                       >
                         {/* Title & Code */}
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center flex-wrap gap-1.5">
                             <span className="font-mono text-[11px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded">
                               {opp.trackingCode}
                             </span>
@@ -489,6 +551,15 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                             }`}>
                               {opp.priority}
                             </span>
+                            {isOverdue && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-red-100 text-red-800 border border-red-300 shadow-2xs"
+                                title={`Stage SLA exceeded by ${sla.days - sla.targetDays} day(s) (Target: ${sla.targetDays}d, Current: ${sla.days}d)`}
+                              >
+                                <AlertTriangle className="w-3 h-3 text-red-600 animate-pulse shrink-0" />
+                                SLA EXCEEDED (+{sla.days - sla.targetDays}d)
+                              </span>
+                            )}
                           </div>
                           <div className="font-bold text-slate-900 text-xs mt-1 hover:text-blue-600">
                             {opp.title}
@@ -521,10 +592,22 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
 
                         {/* Current Stage */}
                         <td className="px-4 py-3.5">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mr-1.5"></span>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                            isOverdue
+                              ? 'bg-red-50 text-red-800 border border-red-300'
+                              : 'bg-blue-50 text-blue-800 border border-blue-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                              isOverdue ? 'bg-red-600 animate-pulse' : 'bg-blue-600'
+                            }`}></span>
                             {stageDef?.shortLabel}
                           </span>
+                          {isOverdue && (
+                            <div className="text-[10px] text-red-600 font-bold mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />
+                              <span>Target SLA: {sla.targetDays}d limit</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Assigned Role & Lead */}
@@ -542,24 +625,43 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                           </div>
                         </td>
 
-                        {/* SLA */}
+                        {/* SLA Status Visual Warning Indicator */}
                         <td className="px-4 py-3.5">
-                          <div className="flex items-center space-x-1.5">
-                            <span
-                              className={`w-2 h-2 rounded-full ${
-                                sla.isOverdue
-                                  ? 'bg-red-500 animate-pulse'
-                                  : sla.status === 'WARNING'
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
-                              }`}
-                            />
-                            <span className={`text-[11px] font-semibold ${
-                              sla.isOverdue ? 'text-red-700 font-bold' : 'text-slate-600'
-                            }`}>
-                              {sla.days}d / {sla.targetDays}d
-                            </span>
-                          </div>
+                          {isOverdue ? (
+                            <div className="space-y-1">
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-100/95 border border-red-300 text-red-900 font-bold shadow-2xs">
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-600 animate-pulse shrink-0" />
+                                <span className="text-xs font-black">{sla.days}d / {sla.targetDays}d</span>
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-red-600 text-white tracking-wider">
+                                  OVERDUE
+                                </span>
+                              </div>
+                              <div className="text-[10px] font-bold text-red-700 pl-0.5 flex items-center gap-1">
+                                <span>+{sla.days - sla.targetDays}d past stage SLA</span>
+                              </div>
+                            </div>
+                          ) : sla.status === 'WARNING' ? (
+                            <div className="space-y-1">
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-amber-900 font-bold shadow-2xs">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                <span className="text-xs font-semibold">{sla.days}d / {sla.targetDays}d</span>
+                                <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-500 text-white tracking-wider">
+                                  NEAR SLA
+                                </span>
+                              </div>
+                              <div className="text-[10px] font-medium text-amber-700 pl-0.5">
+                                {sla.percentElapsed}% of stage target
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                              <span className="text-[11px] font-semibold text-slate-700">
+                                {sla.days}d / {sla.targetDays}d
+                              </span>
+                              <span className="text-[10px] text-emerald-700 font-semibold">On Track</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Action */}
@@ -569,7 +671,11 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                               e.stopPropagation();
                               onSelectOpportunity(opp);
                             }}
-                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-2xs transition-all"
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-2xs transition-all ${
+                              isOverdue
+                                ? 'bg-red-600 hover:bg-red-700'
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                           >
                             <Zap className="w-3.5 h-3.5 mr-1" />
                             Action
@@ -607,7 +713,7 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
 
       {/* KANBAN BOARD VIEW */}
       {viewMode === 'KANBAN' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 2xl:gap-6 items-start">
           {kanbanPhases.map((phase) => {
             const phaseOpps = filteredOpportunities.filter((opp) => phase.stages.includes(opp.currentStage));
             const phaseTcv = phaseOpps.reduce((sum, o) => sum + (o.dealValue || 0), 0);
@@ -637,15 +743,40 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
                     phaseOpps.map((opp) => {
                       const stageDef = STAGE_MAP[opp.currentStage];
                       const sla = getSlaStatus(opp, stageDefinitions);
+                      const isOverdue = sla.isOverdue;
 
                       return (
                         <div
                           key={opp.id}
                           onClick={() => onSelectOpportunity(opp)}
-                          className="bg-white rounded-xl p-3.5 border border-slate-200/90 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer space-y-2.5"
+                          className={`bg-white rounded-xl p-3.5 border shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-2.5 ${
+                            isOverdue
+                              ? 'border-red-300 ring-2 ring-red-400/40 bg-red-50/20 hover:border-red-400'
+                              : 'border-slate-200/90 hover:border-blue-300'
+                          }`}
                         >
+                          {/* SLA Overdue Warning Header Banner */}
+                          {isOverdue && (
+                            <div className="flex items-center justify-between px-2.5 py-1 bg-red-100/95 border border-red-300 rounded-lg text-red-900 text-[10px] font-bold shadow-2xs">
+                              <span className="inline-flex items-center gap-1 font-black text-red-800">
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-600 animate-pulse shrink-0" />
+                                SLA DURATION EXCEEDED
+                              </span>
+                              <span className="bg-red-600 text-white px-1.5 py-0.2 rounded text-[9px] font-black">
+                                +{sla.days - sla.targetDays}d Over
+                              </span>
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-mono text-slate-500 font-semibold">{opp.trackingCode}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-slate-500 font-semibold">{opp.trackingCode}</span>
+                              {isOverdue && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-red-600 text-white">
+                                  OVERDUE
+                                </span>
+                              )}
+                            </div>
                             <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
                               opp.priority === 'CRITICAL' ? 'bg-red-100 text-red-800' :
                               opp.priority === 'HIGH' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
@@ -661,18 +792,29 @@ export const OpportunityList: React.FC<OpportunityListProps> = ({
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
                             <span className="font-extrabold text-emerald-700">{formatCurrency(opp.dealValue, opp.currency)}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-100">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                              isOverdue
+                                ? 'bg-red-50 text-red-800 border-red-200'
+                                : 'bg-blue-50 text-blue-800 border border-blue-100'
+                            }`}>
                               {stageDef?.shortLabel}
                             </span>
                           </div>
 
                           <div className="flex items-center justify-between text-[10px] text-slate-400">
                             <span className="truncate max-w-[120px]">
-                              Lead: {opp.salesLead}
+                              Lead: {opp.salesLead || 'Unassigned'}
                             </span>
-                            <span className={sla.isOverdue ? 'text-red-600 font-bold' : ''}>
-                              {sla.days}d in stage
-                            </span>
+                            {isOverdue ? (
+                              <span className="inline-flex items-center gap-1 text-red-700 font-bold bg-red-100 px-1.5 py-0.5 rounded text-[10px] border border-red-200">
+                                <Clock className="w-3 h-3 text-red-600 shrink-0" />
+                                {sla.days}d in stage ({sla.targetDays}d target)
+                              </span>
+                            ) : (
+                              <span className={sla.status === 'WARNING' ? 'text-amber-600 font-semibold' : ''}>
+                                {sla.days}d / {sla.targetDays}d
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
