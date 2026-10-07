@@ -183,8 +183,56 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
     return Array.from(new Set([...buResources, ...defaults]));
   }, [resources]);
 
+  // Track A Required Fields Validation (All Track A fields are required)
+  const isTrackAValid = useMemo(() => {
+    return (
+      budgetCode.trim() !== '' &&
+      contractCode.trim() !== '' &&
+      contractStartDate.trim() !== '' &&
+      contractEndDate.trim() !== '' &&
+      Boolean(contractRenewalType) &&
+      contractOwner.trim() !== '' &&
+      ((tcv && tcv > 0) || (opportunity.dealValue && opportunity.dealValue > 0)) &&
+      Boolean(billingFrequency)
+    );
+  }, [budgetCode, contractCode, contractStartDate, contractEndDate, contractRenewalType, contractOwner, tcv, opportunity.dealValue, billingFrequency]);
+
+  const missingFieldsA = useMemo(() => {
+    const list: string[] = [];
+    if (!budgetCode.trim()) list.push('Budget Code');
+    if (!contractCode.trim()) list.push('Contract Code');
+    if (!contractStartDate.trim()) list.push('Contract Start Date');
+    if (!contractEndDate.trim()) list.push('Contract End Date');
+    if (!contractRenewalType) list.push('Renewal Classification');
+    if (!contractOwner.trim()) list.push('Contract Owner');
+    if (!((tcv && tcv > 0) || (opportunity.dealValue && opportunity.dealValue > 0))) list.push('Total Contract Value (TCV)');
+    if (!billingFrequency) list.push('Billing Frequency');
+    return list;
+  }, [budgetCode, contractCode, contractStartDate, contractEndDate, contractRenewalType, contractOwner, tcv, opportunity.dealValue, billingFrequency]);
+
+  // Track B Validation:
+  // - Make all date fields required
+  // - If it's a project, activate only the Delivery Completed button if the Delivery Completion % is 100, and all date fields are filled
+  // - If non-project delivery, activate only the Delivery Completed button if Business Unit Owner is filled and Delivery Closure Date is filled.
+  const isProjectDatesFilled = Boolean(
+    projectStartDate.trim() &&
+    targetEndDate.trim() &&
+    actualGoLiveDate.trim() &&
+    actualClosureDate.trim()
+  );
+  const isProjectCompletion100 = progressPercentage === 100;
+  const isProjectValid = isProjectCompletion100 && isProjectDatesFilled;
+
+  const isNonProjectValid = Boolean(
+    businessUnitOwner.trim() &&
+    deliveryClosureDate.trim()
+  );
+
+  const isTrackBValid = isProject ? isProjectValid : isNonProjectValid;
+
   // Handle Track A Save & Finance Setup Completed
   const handleCompleteFinanceSetup = () => {
+    if (!isTrackAValid) return;
     const now = new Date().toISOString();
     const updatedFinance: ParallelFinanceData = {
       ...opportunity.parallelFinance,
@@ -269,6 +317,7 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
 
   // Handle Track B Save & Delivery Completed
   const handleCompleteDelivery = () => {
+    if (!isTrackBValid) return;
     const now = new Date().toISOString();
     const updatedPmo: ParallelPmoData = {
       ...opportunity.parallelPmo,
@@ -536,13 +585,16 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
             </div>
           </div>
 
-          {/* Form Fields */}
+          {/* Form Fields - All Track A fields are REQUIRED */}
           <div className="space-y-2.5">
             {/* Assigned Budget Code */}
             <div>
-              <label className="block text-slate-700 font-semibold mb-0.5">Assigned Budget Code</label>
+              <label className="block text-slate-700 font-semibold mb-0.5">
+                Assigned Budget Code <span className="text-rose-500 font-bold">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={budgetCode}
                 onChange={(e) => {
                   setBudgetCode(e.target.value);
@@ -553,15 +605,20 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 }}
                 disabled={isFinanceCompleted}
                 placeholder="e.g. BDG-2026-AI-09"
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                className={`w-full px-3 py-1.5 bg-slate-50 border rounded-lg text-xs font-mono text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                  !budgetCode.trim() && !isFinanceCompleted ? 'border-amber-300' : 'border-slate-300'
+                }`}
               />
             </div>
 
             {/* Contract Code / Reference # */}
             <div>
-              <label className="block text-slate-700 font-semibold mb-0.5">Contract Code / Reference #</label>
+              <label className="block text-slate-700 font-semibold mb-0.5">
+                Contract Code / Reference # <span className="text-rose-500 font-bold">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={contractCode}
                 onChange={(e) => {
                   setContractCode(e.target.value);
@@ -573,19 +630,23 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 }}
                 disabled={isFinanceCompleted}
                 placeholder="e.g. CTR-2026-001"
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                className={`w-full px-3 py-1.5 bg-slate-50 border rounded-lg text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                  !contractCode.trim() && !isFinanceCompleted ? 'border-amber-300' : 'border-slate-300'
+                }`}
               />
             </div>
 
-            {/* Contract Start Date & Contract End Date (Renamed per requirement) */}
+            {/* Contract Start Date & Contract End Date (Required) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                   <Calendar className="w-3 h-3 text-purple-600" />
                   <span>Contract Start Date</span>
+                  <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <input
                   type="date"
+                  required
                   value={contractStartDate}
                   onChange={(e) => {
                     setContractStartDate(e.target.value);
@@ -595,7 +656,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                     });
                   }}
                   disabled={isFinanceCompleted}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                  className={`w-full px-2.5 py-1.5 bg-slate-50 border rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                    !contractStartDate.trim() && !isFinanceCompleted ? 'border-amber-300' : 'border-slate-300'
+                  }`}
                 />
               </div>
 
@@ -603,9 +666,11 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                   <Calendar className="w-3 h-3 text-purple-600" />
                   <span>Contract End Date</span>
+                  <span className="text-rose-500 font-bold">*</span>
                 </label>
                 <input
                   type="date"
+                  required
                   value={contractEndDate}
                   onChange={(e) => {
                     setContractEndDate(e.target.value);
@@ -615,15 +680,17 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                     });
                   }}
                   disabled={isFinanceCompleted}
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                  className={`w-full px-2.5 py-1.5 bg-slate-50 border rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                    !contractEndDate.trim() && !isFinanceCompleted ? 'border-amber-300' : 'border-slate-300'
+                  }`}
                 />
               </div>
             </div>
 
-            {/* Recurring or Non-Recurring (Renewal Indicator) */}
+            {/* Recurring or Non-Recurring (Renewal Indicator - Required) */}
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Contract Renewal Classification
+                Contract Renewal Classification <span className="text-rose-500 font-bold">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -678,13 +745,15 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
               </div>
             </div>
 
-            {/* Contract Owner Dropdown */}
+            {/* Contract Owner Dropdown - Required */}
             <div>
               <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                 <User className="w-3 h-3 text-purple-600" />
                 <span>Contract Owner</span>
+                <span className="text-rose-500 font-bold">*</span>
               </label>
               <select
+                required
                 value={contractOwner}
                 disabled={isFinanceCompleted}
                 onChange={(e) => {
@@ -694,7 +763,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                     parallelFinance: { ...opportunity.parallelFinance, contractOwner: e.target.value },
                   });
                 }}
-                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                className={`w-full px-3 py-1.5 bg-slate-50 border rounded-lg text-xs font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                  !contractOwner.trim() && !isFinanceCompleted ? 'border-amber-300' : 'border-slate-300'
+                }`}
               >
                 {contractOwnerOptions.map((opt) => (
                   <option key={opt} value={opt}>
@@ -707,17 +778,22 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
               </span>
             </div>
 
-            {/* Total Contract Value & Billing Frequency */}
+            {/* Total Contract Value & Billing Frequency - Required */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               <div>
-                <label className="block text-slate-600 font-medium mb-0.5">Total Contract Value (TCV)</label>
+                <label className="block text-slate-600 font-medium mb-0.5">
+                  Total Contract Value (TCV) <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <div className="font-bold text-slate-900 px-3 py-1.5 bg-purple-50/70 border border-purple-200 rounded-lg text-xs">
                   {formatCurrency(tcv || opportunity.dealValue, opportunity.currency)}
                 </div>
               </div>
               <div>
-                <label className="block text-slate-600 font-medium mb-0.5">Billing Frequency</label>
+                <label className="block text-slate-600 font-medium mb-0.5">
+                  Billing Frequency <span className="text-rose-500 font-bold">*</span>
+                </label>
                 <select
+                  required
                   value={billingFrequency}
                   disabled={isFinanceCompleted}
                   onChange={(e: any) => {
@@ -738,7 +814,7 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
             </div>
           </div>
 
-          {/* Track A Action Button: Finance Set-up Completed */}
+          {/* Track A Action Button: Finance Set-up Completed (Activated only when all fields are filled) */}
           <div className="pt-2 border-t border-slate-100">
             {isFinanceCompleted ? (
               <div className="p-2.5 bg-purple-50 rounded-lg border border-purple-200 flex items-center justify-between text-purple-900">
@@ -758,14 +834,35 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleCompleteFinanceSetup}
-                className="w-full py-2.5 px-3 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2"
-              >
-                <DollarSign className="w-4 h-4" />
-                <span>Finance Set-up Completed</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  id="btn-complete-finance-setup"
+                  disabled={!isTrackAValid}
+                  onClick={handleCompleteFinanceSetup}
+                  className={`w-full py-2.5 px-3 rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 ${
+                    isTrackAValid
+                      ? 'bg-purple-700 hover:bg-purple-800 text-white cursor-pointer active:scale-[0.99]'
+                      : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed opacity-80'
+                  }`}
+                  title={!isTrackAValid ? `All fields are required. Missing: ${missingFieldsA.join(', ')}` : 'Complete Finance Setup'}
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span>Finance Set-up Completed</span>
+                </button>
+
+                {!isTrackAValid && (
+                  <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-start space-x-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-amber-950">All Track A fields are required:</span>
+                      <span className="block mt-0.5 text-amber-800">
+                        Please fill in: {missingFieldsA.join(', ')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             <p className="text-[10px] text-slate-500 mt-1 text-center">
               Stops Track A SLA. If Track B is ongoing, workflow stage is held; if Track B is finished, advances to Stage 13.
@@ -947,9 +1044,30 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 {/* Delivery Completion % and Delivery Status */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-0.5">
-                      Delivery Completion % ({progressPercentage}%)
-                    </label>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="text-slate-700 font-semibold">
+                        Delivery Completion % ({progressPercentage}%) <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        disabled={isDeliveryCompleted}
+                        onClick={() => {
+                          setProgressPercentage(100);
+                          onUpdateOpportunity({
+                            ...opportunity,
+                            parallelPmo: { ...opportunity.parallelPmo, progressPercentage: 100 },
+                          });
+                        }}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-bold transition-all ${
+                          progressPercentage === 100
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : 'bg-cyan-100 text-cyan-800 hover:bg-cyan-200 border border-cyan-200 cursor-pointer'
+                        }`}
+                        title="Click to set completion to 100% (Required for Delivery Completed)"
+                      >
+                        {progressPercentage === 100 ? '100% ✓' : 'Set 100%'}
+                      </button>
+                    </div>
                     <div className="flex items-center space-x-2">
                       <input
                         type="range"
@@ -981,9 +1099,16 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                             parallelPmo: { ...opportunity.parallelPmo, progressPercentage: val },
                           });
                         }}
-                        className="w-14 px-1.5 py-1 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800 disabled:bg-slate-100"
+                        className={`w-14 px-1.5 py-1 bg-white border rounded text-center text-xs font-bold text-slate-800 disabled:bg-slate-100 ${
+                          progressPercentage === 100 ? 'border-emerald-400 bg-emerald-50/30' : 'border-slate-300'
+                        }`}
                       />
                     </div>
+                    {progressPercentage < 100 && !isDeliveryCompleted && (
+                      <span className="text-[10px] text-amber-700 block mt-0.5 font-medium">
+                        Must reach 100% before Delivery Completed can be activated.
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -1007,15 +1132,17 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                   </div>
                 </div>
 
-                {/* Project Start Date & Target End Date with Computed Days SLA */}
+                {/* Project Start Date & Target End Date with Computed Days SLA (Required) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                       <Calendar className="w-3 h-3 text-cyan-600" />
                       <span>Project Start Date</span>
+                      <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="date"
+                      required
                       value={projectStartDate}
                       disabled={isDeliveryCompleted}
                       onChange={(e) => {
@@ -1030,7 +1157,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                           },
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100"
+                      className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100 ${
+                        !projectStartDate.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                      }`}
                     />
                   </div>
 
@@ -1038,9 +1167,11 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                     <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                       <Calendar className="w-3 h-3 text-cyan-600" />
                       <span>Target End Date</span>
+                      <span className="text-rose-500 font-bold">*</span>
                     </label>
                     <input
                       type="date"
+                      required
                       value={targetEndDate}
                       disabled={isDeliveryCompleted}
                       onChange={(e) => {
@@ -1055,7 +1186,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                           },
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100"
+                      className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100 ${
+                        !targetEndDate.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                      }`}
                     />
                   </div>
                 </div>
@@ -1078,12 +1211,17 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                   </span>
                 </div>
 
-                {/* Actual Go Live Date & Actual Closure Date */}
+                {/* Actual Go Live Date & Actual Closure Date (Required) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-0.5">Actual Go Live Date</label>
+                    <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
+                      <Calendar className="w-3 h-3 text-cyan-600" />
+                      <span>Actual Go Live Date</span>
+                      <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="date"
+                      required
                       value={actualGoLiveDate}
                       disabled={isDeliveryCompleted}
                       onChange={(e) => {
@@ -1093,14 +1231,21 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                           parallelPmo: { ...opportunity.parallelPmo, actualGoLiveDate: e.target.value },
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100"
+                      className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100 ${
+                        !actualGoLiveDate.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 font-semibold mb-0.5">Actual Closure Date</label>
+                    <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
+                      <Calendar className="w-3 h-3 text-cyan-600" />
+                      <span>Actual Closure Date</span>
+                      <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="date"
+                      required
                       value={actualClosureDate}
                       disabled={isDeliveryCompleted}
                       onChange={(e) => {
@@ -1110,7 +1255,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                           parallelPmo: { ...opportunity.parallelPmo, actualClosureDate: e.target.value },
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100"
+                      className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100 ${
+                        !actualClosureDate.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                      }`}
                     />
                   </div>
                 </div>
@@ -1120,13 +1267,15 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
               /* CONDITIONAL BRANCH: IF NOT A PROJECT                      */
               /* ========================================================= */
               <div className="space-y-2.5 bg-amber-50/40 p-3 rounded-lg border border-amber-100">
-                {/* Business Unit Owner Dropdown */}
+                {/* Business Unit Owner Dropdown (Required) */}
                 <div>
                   <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                     <User className="w-3 h-3 text-amber-600" />
                     <span>Business Unit Owner</span>
+                    <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <select
+                    required
                     value={businessUnitOwner}
                     disabled={isDeliveryCompleted}
                     onChange={(e) => {
@@ -1136,7 +1285,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                         parallelPmo: { ...opportunity.parallelPmo, businessUnitOwner: e.target.value },
                       });
                     }}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                    className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500 ${
+                      !businessUnitOwner.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                    }`}
                   >
                     {buOwnerOptions.map((owner) => (
                       <option key={owner} value={owner}>
@@ -1146,14 +1297,16 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                   </select>
                 </div>
 
-                {/* Delivery Closure Date */}
+                {/* Delivery Closure Date (Required) */}
                 <div>
                   <label className="block text-slate-700 font-semibold mb-0.5 flex items-center space-x-1">
                     <Calendar className="w-3 h-3 text-amber-600" />
                     <span>Delivery Closure Date</span>
+                    <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <input
                     type="date"
+                    required
                     value={deliveryClosureDate}
                     disabled={isDeliveryCompleted}
                     onChange={(e) => {
@@ -1168,7 +1321,9 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                         },
                       });
                     }}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100"
+                    className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-xs font-medium text-slate-800 disabled:bg-slate-100 ${
+                      !deliveryClosureDate.trim() && !isDeliveryCompleted ? 'border-amber-300' : 'border-slate-300'
+                    }`}
                   />
                 </div>
 
@@ -1200,7 +1355,7 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
             )}
           </div>
 
-          {/* Track B Action Button: Delivery Completed */}
+          {/* Track B Action Button: Delivery Completed (Activated only when requirements are satisfied) */}
           <div className="pt-2 border-t border-slate-100">
             {isDeliveryCompleted ? (
               <div className="p-2.5 bg-cyan-50 rounded-lg border border-cyan-200 flex items-center justify-between text-cyan-900">
@@ -1220,14 +1375,65 @@ export const ParallelExecutionSection: React.FC<ParallelExecutionSectionProps> =
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleCompleteDelivery}
-                className="w-full py-2.5 px-3 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2"
-              >
-                <CheckSquare className="w-4 h-4" />
-                <span>Delivery Completed</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  id="btn-complete-delivery"
+                  disabled={!isTrackBValid}
+                  onClick={handleCompleteDelivery}
+                  className={`w-full py-2.5 px-3 rounded-lg font-bold text-xs shadow-xs transition-all flex items-center justify-center space-x-2 ${
+                    isTrackBValid
+                      ? 'bg-cyan-700 hover:bg-cyan-800 text-white cursor-pointer active:scale-[0.99]'
+                      : 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed opacity-80'
+                  }`}
+                  title={!isTrackBValid ? 'Delivery requirements must be satisfied before marking delivery complete' : 'Mark Delivery Completed'}
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  <span>Delivery Completed</span>
+                </button>
+
+                {!isTrackBValid && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-start space-x-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      {isProject ? (
+                        <>
+                          <span className="font-bold text-amber-950">Project Delivery Completion Requirements:</span>
+                          <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[10.5px]">
+                            <li className={progressPercentage === 100 ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Delivery Completion % must be 100% {progressPercentage === 100 ? '✓' : `(currently ${progressPercentage}%)`}
+                            </li>
+                            <li className={projectStartDate.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Project Start Date {projectStartDate.trim() ? '✓' : 'is required'}
+                            </li>
+                            <li className={targetEndDate.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Target End Date {targetEndDate.trim() ? '✓' : 'is required'}
+                            </li>
+                            <li className={actualGoLiveDate.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Actual Go Live Date {actualGoLiveDate.trim() ? '✓' : 'is required'}
+                            </li>
+                            <li className={actualClosureDate.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Actual Closure Date {actualClosureDate.trim() ? '✓' : 'is required'}
+                            </li>
+                          </ul>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-bold text-amber-950">Non-Project Delivery Completion Requirements:</span>
+                          <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[10.5px]">
+                            <li className={businessUnitOwner.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Business Unit Owner {businessUnitOwner.trim() ? '✓' : 'is required'}
+                            </li>
+                            <li className={deliveryClosureDate.trim() ? 'text-emerald-700 font-medium' : 'text-amber-900 font-bold'}>
+                              Delivery Closure Date {deliveryClosureDate.trim() ? '✓' : 'is required'}
+                            </li>
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             <p className="text-[10px] text-slate-500 mt-1 text-center">
               Stops Track B SLA. If Track A is ongoing, workflow stage is held; if Track A is finished, advances to Stage 13.

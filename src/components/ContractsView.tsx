@@ -338,50 +338,6 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   return (
     <div className="space-y-6">
 
-      {/* Visual Validity End & Renewal Warning Alert Banner (Matches Opportunity View Alert) */}
-      {expiringAlertsCount > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-red-50 border border-amber-300 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-5 h-5 text-amber-600 animate-pulse" />
-            </div>
-            <div>
-              <div className="text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2">
-                <span>{expiringAlertsCount} {expiringAlertsCount === 1 ? 'Contract has' : 'Contracts have'} upcoming expiration or expired validity alerts</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-600 text-white uppercase tracking-wider">
-                  Validity Alert
-                </span>
-              </div>
-              <p className="text-[11px] sm:text-xs text-amber-800 mt-0.5">
-                Contracts team proactive alert: contracts expired or expiring in ≤ 60 days require immediate review. Trigger recurring renewals with BU/Finance updates or inspect non-recurring billing & CWC sign-off below.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-            <button
-              type="button"
-              id="btn-toggle-contracts-alert-banner"
-              onClick={() => {
-                if (activeTab === 'EXPIRING_SOON') {
-                  setActiveTab('ALL');
-                } else {
-                  setActiveTab('EXPIRING_SOON');
-                }
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'EXPIRING_SOON'
-                  ? 'bg-amber-700 text-white hover:bg-amber-800'
-                  : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-100/60'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>{activeTab === 'EXPIRING_SOON' ? 'Show All Contracts' : 'Filter Validity Alerts Only'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* CONTRACTS OVERVIEW METRICS CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 2xl:gap-5">
         
@@ -458,6 +414,50 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
         </div>
 
       </div>
+
+      {/* Visual Validity End & Renewal Warning Alert Banner - Moved below the 5 cards */}
+      {expiringAlertsCount > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 via-rose-50 to-red-50 border border-amber-300 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-300 text-amber-800 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-600 animate-pulse" />
+            </div>
+            <div>
+              <div className="text-xs sm:text-sm font-bold text-amber-950 flex items-center gap-2">
+                <span>{expiringAlertsCount} {expiringAlertsCount === 1 ? 'Contract has' : 'Contracts have'} upcoming expiration or expired validity alerts</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-amber-600 text-white uppercase tracking-wider">
+                  Validity Alert
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-amber-800 mt-0.5">
+                Contracts team proactive alert: contracts expired or expiring in ≤ 60 days require immediate review. Trigger recurring renewals with BU/Finance updates or inspect non-recurring billing & CWC sign-off below.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <button
+              type="button"
+              id="btn-toggle-contracts-alert-banner"
+              onClick={() => {
+                if (activeTab === 'EXPIRING_SOON') {
+                  setActiveTab('ALL');
+                } else {
+                  setActiveTab('EXPIRING_SOON');
+                }
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'EXPIRING_SOON'
+                  ? 'bg-amber-700 text-white hover:bg-amber-800'
+                  : 'bg-white text-amber-800 border border-amber-300 hover:bg-amber-100/60'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{activeTab === 'EXPIRING_SOON' ? 'Show All Contracts' : 'Filter Validity Alerts Only'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* FILTER & CONTROL BAR */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs space-y-4">
